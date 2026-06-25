@@ -20,7 +20,7 @@ const categorias = [
 const postsIniciales = [
   {
     id: "1",
-    autor: "Carlos",
+    autor: "Carlosss",
     categoria: "Eventos",
     tiempo: "Hace 2 horas",
     titulo: "Torneo de Fútbol Universitario - Inscripciones Abiertas",
