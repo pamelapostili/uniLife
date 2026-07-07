@@ -23,26 +23,16 @@ export default function LoginScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-  const [verificationPending, setVerificationPending] = useState(false);
-  const [pendingAuthType, setPendingAuthType] = useState<"email" | "sms" | null>(null);
-  const [pendingContact, setPendingContact] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
-  const [debugMessage, setDebugMessage] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
-  function showDebug(title: string, message?: string) {
+  function showError(title: string, message?: string) {
     const msg = message ?? "";
-    try {
-      // On web, Alert.alert may not show as expected; use window.alert as fallback
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.alert(`${title}\n${msg}`);
-      } else {
-        Alert.alert(title, msg);
-      }
-    } catch (e) {
-      // ignore
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.alert(`${title}\n${msg}`);
+    } else {
+      Alert.alert(title, msg);
     }
-    console.log('[DEBUG]', title, message);
-    setDebugMessage(`${title}: ${msg}`);
+    setInfoMessage(`${title}: ${msg}`);
   }
 
   useEffect(() => {
@@ -59,146 +49,109 @@ export default function LoginScreen() {
     return /^\+?[0-9]{7,15}$/.test(value.replace(/\s+/g, ""));
   }
 
+  // Crea o actualiza la fila del usuario en la tabla "profiles" con datos reales.
+  async function ensureProfile(userId: string, fullName?: string) {
+    const { error } = await supabase.from("profiles").upsert(
+      {
+        id: userId,
+        full_name: fullName && fullName.trim().length > 0 ? fullName.trim() : undefined,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" }
+    );
+
+    if (error) {
+      console.warn("[profiles.upsert] ", error.message);
+    }
+  }
+
   async function handleLogin() {
-    if (!emailOrPhone) {
-      showDebug("Completa los campos", "Ingresa tu correo o teléfono.");
+    if (!emailOrPhone || !password) {
+      showError("Completa los campos", "Ingresa tu correo/teléfono y tu contraseña.");
       return;
     }
 
-    if (isValidEmail(emailOrPhone)) {
-      setLoading(true);
-      const { data, error } = await supabase.auth.signInWithOtp({
-        email: emailOrPhone,
-      });
-      setLoading(false);
+    setLoading(true);
+    const { data, error } = isValidEmail(emailOrPhone)
+      ? await supabase.auth.signInWithPassword({ email: emailOrPhone, password })
+      : isValidPhone(emailOrPhone)
+      ? await supabase.auth.signInWithPassword({ phone: emailOrPhone, password })
+      : { data: null, error: { message: "Ingresa un correo o número válido." } as any };
+    setLoading(false);
 
-      if (error) {
-        showDebug("No se pudo enviar el código", error.message);
-        return;
-      }
+    if (error) {
+      showError("No se pudo iniciar sesión", error.message);
+      return;
+    }
 
-      setPendingAuthType("email");
-      setPendingContact(emailOrPhone);
-      setVerificationPending(true);
-      showDebug("Código enviado", "Revisa tu correo y escribe el código aquí.");
-    } else if (isValidPhone(emailOrPhone)) {
-      setLoading(true);
-      const { data, error } = await supabase.auth.signInWithOtp({
-        phone: emailOrPhone,
-      });
-      setLoading(false);
-
-      if (error) {
-        showDebug("No se pudo enviar el código", error.message);
-        return;
-      }
-
-      setPendingAuthType("sms");
-      setPendingContact(emailOrPhone);
-      setVerificationPending(true);
-      showDebug("Código enviado", "Revisa tu teléfono y escribe el código aquí.");
-    } else {
-      showDebug("Formato inválido", "Ingresa un correo o número válido.");
+    if (data?.user) {
+      await ensureProfile(data.user.id, data.user.user_metadata?.full_name);
+      router.replace("/");
     }
   }
 
   async function handleSignUp() {
     if (!emailOrPhone || !password || !confirmPassword) {
-      showDebug("Completa los campos", "Rellena todos los campos de registro.");
+      showError("Completa los campos", "Rellena todos los campos de registro.");
       return;
     }
 
     if (password !== confirmPassword) {
-      showDebug("Contraseñas no coinciden", "Verifica que las contraseñas coincidan.");
+      showError("Contraseñas no coinciden", "Verifica que las contraseñas coincidan.");
       return;
     }
 
-    if (isValidEmail(emailOrPhone)) {
-      setLoading(true);
-      const { data, error } = await supabase.auth.signInWithOtp({
-        email: emailOrPhone,
-        options: { shouldCreateUser: true },
-      });
-      setLoading(false);
-
-      if (error) {
-        showDebug("No se pudo enviar el código", error.message);
-        return;
-      }
-
-      setPendingAuthType("email");
-      setPendingContact(emailOrPhone);
-      setVerificationPending(true);
-      showDebug("Código enviado", "Revisa tu correo y escribe el código para completar el registro.");
-    } else if (isValidPhone(emailOrPhone)) {
-      setLoading(true);
-      const { data, error } = await supabase.auth.signInWithOtp({
-        phone: emailOrPhone,
-        options: { shouldCreateUser: true },
-      });
-      setLoading(false);
-
-      if (error) {
-        showDebug("No se pudo enviar el código", error.message);
-        return;
-      }
-
-      setPendingAuthType("sms");
-      setPendingContact(emailOrPhone);
-      setVerificationPending(true);
-      showDebug("Código enviado", "Revisa tu teléfono y escribe el código para completar el registro.");
-    } else {
-      showDebug("Formato inválido", "Ingresa un correo o número válido.");
+    if (password.length < 6) {
+      showError("Contraseña muy corta", "Usa al menos 6 caracteres.");
+      return;
     }
-  }
 
-  async function handleVerifyCode() {
-    if (!verificationCode) {
-      showDebug("Ingresa el código", "Escribe el código que recibiste.");
+    const isEmail = isValidEmail(emailOrPhone);
+    const isPhone = isValidPhone(emailOrPhone);
+
+    if (!isEmail && !isPhone) {
+      showError("Formato inválido", "Ingresa un correo o número válido.");
       return;
     }
 
     setLoading(true);
-    const otpPayload: any = {
-      type: pendingAuthType === "sms" ? "sms" : "email",
-      token: verificationCode,
-    };
-    if (pendingAuthType === "sms") {
-      otpPayload.phone = pendingContact;
-    } else if (pendingAuthType === "email") {
-      otpPayload.email = pendingContact;
-    }
-
-    const { data, error } = await supabase.auth.verifyOtp(otpPayload);
+    const { data, error } = isEmail
+      ? await supabase.auth.signUp({
+          email: emailOrPhone,
+          password,
+          options: { data: { full_name: name || undefined } },
+        })
+      : await supabase.auth.signUp({
+          phone: emailOrPhone,
+          password,
+          options: { data: { full_name: name || undefined } },
+        });
     setLoading(false);
 
     if (error) {
-      showDebug("Código inválido", error.message);
+      showError("No se pudo crear la cuenta", error.message);
       return;
     }
 
-    setVerificationPending(false);
-    setVerificationCode("");
-    setPendingAuthType(null);
-    setPendingContact("");
-
-    if (data?.session) {
-      const userId = data.session.user.id;
-      const { error: upsertError } = await supabase.from("profiles").upsert({
-        id: userId,
-        full_name: name || undefined,
-        avatar_url: undefined,
-      });
-
-      if (upsertError) {
-        showDebug("Perfil no creado", upsertError.message);
-      } else {
-        showDebug("Cuenta verificada", "Tu cuenta y perfil se crearon correctamente.");
-      }
-
+    if (data?.session && data.user) {
+      // Confirmación automática habilitada: ya hay sesión activa.
+      await ensureProfile(data.user.id, name);
       router.replace("/");
-    } else {
-      showDebug("Verificación completada", "La verificación fue correcta.");
+      return;
+    }
+
+    if (data?.user && !data.session) {
+      // Requiere confirmación por correo/SMS antes de poder iniciar sesión.
+      await ensureProfile(data.user.id, name);
+      setIsSignUp(false);
+      setPassword("");
+      setConfirmPassword("");
+      showError(
+        "Confirma tu cuenta",
+        isEmail
+          ? "Revisa tu correo y confirma tu cuenta antes de iniciar sesión."
+          : "Revisa tu teléfono y confirma tu cuenta antes de iniciar sesión."
+      );
     }
   }
 
@@ -217,9 +170,9 @@ export default function LoginScreen() {
           {isSignUp ? "Regístrate y conecta con la comunidad" : "Accede a UniLife con tu cuenta de Supabase"}
         </Text>
 
-        {debugMessage ? (
-          <View style={{ padding: 8, backgroundColor: '#fff3bf', borderRadius: 8, marginBottom: 10 }}>
-            <Text style={{ color: '#856404' }}>{debugMessage}</Text>
+        {infoMessage ? (
+          <View style={{ padding: 8, backgroundColor: "#fff3bf", borderRadius: 8, marginBottom: 10 }}>
+            <Text style={{ color: "#856404" }}>{infoMessage}</Text>
           </View>
         ) : null}
 
@@ -261,35 +214,19 @@ export default function LoginScreen() {
 
         <TouchableOpacity
           style={styles.button}
-          onPress={verificationPending ? handleVerifyCode : isSignUp ? handleSignUp : handleLogin}
+          onPress={isSignUp ? handleSignUp : handleLogin}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>
-              {verificationPending ? "Verificar código" : isSignUp ? "Crear cuenta" : "Enviar código"}
-            </Text>
+            <Text style={styles.buttonText}>{isSignUp ? "Crear cuenta" : "Iniciar sesión"}</Text>
           )}
         </TouchableOpacity>
 
-        {verificationPending ? (
-          <TextInput
-            style={styles.input}
-            placeholder="Código de verificación"
-            value={verificationCode}
-            onChangeText={setVerificationCode}
-            keyboardType="number-pad"
-          />
-        ) : null}
-
         <TouchableOpacity onPress={() => setIsSignUp((s) => !s)} style={{ marginTop: 12 }}>
-          <Text style={[styles.note, { textDecorationLine: 'underline' }]}> 
-            {verificationPending
-              ? "Volver" 
-              : isSignUp
-              ? "¿Ya tienes cuenta? Iniciar sesión"
-              : "¿No tienes cuenta? Crear cuenta"}
+          <Text style={[styles.note, { textDecorationLine: "underline" }]}>
+            {isSignUp ? "¿Ya tienes cuenta? Iniciar sesión" : "¿No tienes cuenta? Crear cuenta"}
           </Text>
         </TouchableOpacity>
       </View>
