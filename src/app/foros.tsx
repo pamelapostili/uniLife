@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Image,
   StyleSheet,
@@ -9,6 +11,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { supabase } from "../lib/supabase";
+import { useUser } from "../lib/user-context";
 
 const categorias = [
   "Todos",
@@ -57,10 +61,48 @@ const postsIniciales = [
 ];
 
 export default function ForosScreen() {
+  const { user, loading } = useUser();
+  const router = useRouter();
+  const [posts, setPosts] = useState(postsIniciales);
+  const [fetching, setFetching] = useState(true);
   const [busqueda, setBusqueda] = useState("");
   const [categoria, setCategoria] = useState("Todos");
 
-  const filtrados = postsIniciales.filter((post) => {
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (user) {
+      (async () => {
+        const { data, error } = await supabase
+          .from("posts")
+          .select("id, author, category, inserted_at, title, description, response_count, likes, avatar_url")
+          .order("inserted_at", { ascending: false })
+          .limit(20);
+
+        if (!error && data?.length) {
+          setPosts(
+            data.map((item: any) => ({
+              id: item.id,
+              autor: item.author ?? "Usuario",
+              categoria: item.category ?? "General",
+              tiempo: item.inserted_at ? new Date(item.inserted_at).toLocaleString() : "Reciente",
+              titulo: item.title ?? "Sin título",
+              descripcion: item.description ?? "",
+              respuestas: item.response_count ?? 0,
+              likes: item.likes ?? 0,
+              avatar: item.avatar_url ?? `https://api.dicebear.com/6.x/initials/svg?seed=${encodeURIComponent(item.author ?? "user")}`,
+            }))
+          );
+        }
+        setFetching(false);
+      })();
+    }
+  }, [loading, user]);
+
+  const filtrados = posts.filter((post) => {
     const coincideTexto =
       post.titulo.toLowerCase().includes(busqueda.toLowerCase()) ||
       post.descripcion.toLowerCase().includes(busqueda.toLowerCase());
@@ -214,12 +256,18 @@ export default function ForosScreen() {
         ))}
       </View>
 
-      <FlatList
-        data={filtrados}
-        keyExtractor={(item) => item.id}
-        renderItem={renderPost}
-        showsVerticalScrollIndicator={false}
-      />
+      {fetching ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#6f7e49" />
+        </View>
+      ) : (
+        <FlatList
+          data={filtrados}
+          keyExtractor={(item) => item.id}
+          renderItem={renderPost}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </View>
   );
 }
@@ -368,6 +416,11 @@ const styles = StyleSheet.create({
     color: "#7f7f7f",
     fontSize: 12,
     fontWeight: "600",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   actions: {

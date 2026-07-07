@@ -4,6 +4,9 @@
     "slug": "UniLife",
     "extra": {
       "apiUrl": "http://192.168.1.100/unilife-api"
+    },
+    "android": {
+      "package": "com.anonymous.UniLife"
     }
   }
 }

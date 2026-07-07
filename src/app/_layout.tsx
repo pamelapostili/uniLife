@@ -1,14 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
+import { UserProvider } from "../lib/user-context";
 
 export default function TabLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: "#6f7e49",
-      }}
-    >
+    <UserProvider>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: "#6f7e49",
+        }}
+      >
       <Tabs.Screen
         name="index"
         options={{
@@ -59,5 +61,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </UserProvider>
   );
 }

@@ -1,17 +1,41 @@
-import {
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-
-import {
-  Ionicons
-} from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { supabase } from "../lib/supabase";
+import { useUser } from "../lib/user-context";
 
 export default function Inicio() {
+  const { user, profile, loading } = useUser();
+  const router = useRouter();
+  const [recommended, setRecommended] = useState<any[]>([]);
+  const [fetching, setFetching] = useState(true);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login");
+    }
+  }, [loading, user]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    (async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url, bio, interests")
+        .neq("id", user.id)
+        .limit(6);
+
+      if (!error && data) {
+        setRecommended(data);
+      }
+      setFetching(false);
+    })();
+  }, [user]);
+
   const opciones = [
     {
       titulo: "Citas",
@@ -45,10 +69,18 @@ export default function Inicio() {
     },
   ];
 
+  if (loading || !user) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6f7e49" />
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>
-        ¿Qué deseas hacer hoy?
+        Hola {profile?.full_name ?? user.email?.split("@")[0] ?? ""}, ¿qué deseas hacer hoy?
       </Text>
 
       <View style={styles.grid}>
@@ -81,35 +113,48 @@ export default function Inicio() {
         Personas que podrían interesarte
       </Text>
 
-      <View style={styles.profileCard}>
-        <Image
-          source={{
-            uri: "https://images.unsplash.com/photo-1494790108377-be9c29b29330",
-          }}
-          style={styles.profileImage}
-        />
-
-        <View style={styles.overlay}>
-          <Text style={styles.name}>
-            María García, 21
-          </Text>
-
-          <Text style={styles.career}>
-            Ingeniería de Software
-          </Text>
-
-          <Text style={styles.description}>
-            Me encanta leer ciencia ficción y
-            aprender nuevos lenguajes de programación
-          </Text>
-
-          <View style={styles.tags}>
-            <Text style={styles.tag}>Lectura</Text>
-            <Text style={styles.tag}>Tecnología</Text>
-            <Text style={styles.tag}>Café</Text>
-          </View>
+      {fetching ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#6f7e49" />
         </View>
-      </View>
+      ) : (
+        recommended.map((person) => (
+          <View key={person.id} style={styles.profileCard}>
+            <Image
+              source={{
+                uri:
+                  person.avatar_url ||
+                  `https://api.dicebear.com/6.x/initials/svg?seed=${encodeURIComponent(
+                    person.full_name ?? person.id
+                  )}`,
+              }}
+              style={styles.profileImage}
+            />
+
+            <View style={styles.overlay}>
+              <Text style={styles.name}>
+                {person.full_name ?? "Usuario"}
+              </Text>
+
+              <Text style={styles.career}>
+                {person.interests?.slice(0, 2).join(" · ") ?? "Intereses"}
+              </Text>
+
+              <Text style={styles.description}>
+                {person.bio ?? "Aún no ha completado su biografía."}
+              </Text>
+
+              <View style={styles.tags}>
+                {(person.interests ?? ["Conocer gente"]).slice(0, 3).map((tag: string) => (
+                  <Text key={tag} style={styles.tag}>
+                    {tag}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          </View>
+        ))
+      )}
     </ScrollView>
   );
 }
@@ -169,6 +214,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: "hidden",
     marginBottom: 40,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   profileImage: {

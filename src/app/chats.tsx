@@ -1,68 +1,130 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+﻿import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { supabase } from "../lib/supabase";
+import { useUser } from "../lib/user-context";
+
+type ChatItem = {
+  id: string;
+  name: string;
+  last_message: string;
+  updated_at: string;
+  unread_count: number;
+  initials: string;
+  online: boolean;
+};
+
+const initialChats: ChatItem[] = [
+  {
+    id: "1",
+    name: "Anita",
+    last_message: "¿Ya terminaste la tarea de bases de datos?",
+    updated_at: "10:42 AM",
+    unread_count: 2,
+    initials: "A",
+    online: true,
+  },
+  {
+    id: "2",
+    name: "Carlosss",
+    last_message: "Mañana nos vemos para Programación Web 👨‍💻",
+    updated_at: "Ayer",
+    unread_count: 0,
+    initials: "C",
+    online: false,
+  },
+  {
+    id: "3",
+    name: "Maria",
+    last_message: "¿Te unirás al grupo de estudio para cálculo?",
+    updated_at: "8:15 PM",
+    unread_count: 0,
+    initials: "M",
+    online: true,
+  },
+];
 
 export default function ChatsScreen() {
+  const { user, loading } = useUser();
+  const router = useRouter();
+  const [chats, setChats] = useState<ChatItem[]>(initialChats);
+  const [fetching, setFetching] = useState(true);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (!user) {
+      setFetching(false);
+      return;
+    }
+
+    (async () => {
+      const { data, error } = await supabase
+        .from("chats")
+        .select("id, title, last_message, updated_at, other_user, unread_count")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false });
+
+      if (!error && data) {
+        setChats(
+          data.map((item: any) => ({
+            id: item.id,
+            name: item.other_user ?? item.title ?? "Contacto",
+            last_message: item.last_message ?? "",
+            updated_at: item.updated_at ? new Date(item.updated_at).toLocaleString() : "",
+            unread_count: item.unread_count ?? 0,
+            initials: (item.other_user ?? "Usuario").substring(0, 1).toUpperCase(),
+            online: true,
+          }))
+        );
+      }
+
+      setFetching(false);
+    })();
+  }, [loading, user, router]);
+
+  if (loading || fetching) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6f7e49" />
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Mensajes</Text>
 
-      <View style={styles.chatCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>A</Text>
-          <View style={styles.onlineDot} />
-        </View>
-
-        <View style={styles.chatInfo}>
-          <View style={styles.topRow}>
-            <Text style={styles.name}>Anita</Text>
-            <Text style={styles.time}>10:42 AM</Text>
+      {chats.map((chat) => (
+        <View key={chat.id} style={styles.chatCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{chat.initials}</Text>
+            {chat.online && <View style={styles.onlineDot} />}
           </View>
 
-          <View style={styles.bottomRow}>
-            <Text style={styles.message} numberOfLines={1}>
-              ¿Ya terminaste la tarea de bases de datos?
-            </Text>
+          <View style={styles.chatInfo}>
+            <View style={styles.topRow}>
+              <Text style={styles.name}>{chat.name}</Text>
+              <Text style={styles.time}>{chat.updated_at}</Text>
+            </View>
 
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>2</Text>
+            <View style={styles.bottomRow}>
+              <Text style={styles.message} numberOfLines={1}>
+                {chat.last_message}
+              </Text>
+
+              {chat.unread_count > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{chat.unread_count}</Text>
+                </View>
+              )}
             </View>
           </View>
         </View>
-      </View>
-
-      <View style={styles.chatCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>C</Text>
-        </View>
-
-        <View style={styles.chatInfo}>
-          <View style={styles.topRow}>
-            <Text style={styles.name}>Carlosss</Text>
-            <Text style={styles.time}>Ayer</Text>
-          </View>
-
-          <Text style={styles.message}>
-            Mañana nos vemos para Programación Web 👨‍💻
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.chatCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>M</Text>
-          <View style={styles.onlineDot} />
-        </View>
-
-        <View style={styles.chatInfo}>
-          <View style={styles.topRow}>
-            <Text style={styles.name}>Maria </Text>
-            <Text style={styles.time}>8:15 PM</Text>
-          </View>
-
-          <Text style={styles.message}>
-            ¿Te unirás al grupo de estudio para cálculo?
-          </Text>
-        </View>
-      </View>
+      ))}
     </ScrollView>
   );
 }
@@ -87,10 +149,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 15,
     marginBottom: 14,
-
     flexDirection: "row",
     alignItems: "center",
-
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -98,7 +158,6 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.08,
     shadowRadius: 6,
-
     elevation: 4,
   },
 
@@ -177,5 +236,11 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "bold",
+  },
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
