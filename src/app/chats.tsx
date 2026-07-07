@@ -1,6 +1,6 @@
 ﻿import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { supabase } from "../lib/supabase";
 import { useUser } from "../lib/user-context";
 
@@ -99,31 +99,33 @@ export default function ChatsScreen() {
       <Text style={styles.title}>Mensajes</Text>
 
       {chats.map((chat) => (
-        <View key={chat.id} style={styles.chatCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{chat.initials}</Text>
-            {chat.online && <View style={styles.onlineDot} />}
-          </View>
-
-          <View style={styles.chatInfo}>
-            <View style={styles.topRow}>
-              <Text style={styles.name}>{chat.name}</Text>
-              <Text style={styles.time}>{chat.updated_at}</Text>
+        <TouchableOpacity key={chat.id} onPress={() => router.push(`/chat/${chat.id}`)} activeOpacity={0.8}>
+          <View style={styles.chatCard}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{chat.initials}</Text>
+              {chat.online && <View style={styles.onlineDot} />}
             </View>
 
-            <View style={styles.bottomRow}>
-              <Text style={styles.message} numberOfLines={1}>
-                {chat.last_message}
-              </Text>
+            <View style={styles.chatInfo}>
+              <View style={styles.topRow}>
+                <Text style={styles.name}>{chat.name}</Text>
+                <Text style={styles.time}>{chat.updated_at}</Text>
+              </View>
 
-              {chat.unread_count > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{chat.unread_count}</Text>
-                </View>
-              )}
+              <View style={styles.bottomRow}>
+                <Text style={styles.message} numberOfLines={1}>
+                  {chat.last_message}
+                </Text>
+
+                {chat.unread_count > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{chat.unread_count}</Text>
+                  </View>
+                )}
+              </View>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
       ))}
     </ScrollView>
   );

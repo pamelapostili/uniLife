@@ -52,6 +52,7 @@ export default function CercanosScreen() {
   const [MapView, setMapView] = useState<any>(null);
   const [Marker, setMarker] = useState<any>(null);
   const [fetchingUsers, setFetchingUsers] = useState(true);
+  const [watcher, setWatcher] = useState<any>(null);
 
   useEffect(() => {
     if (Platform.OS !== "web") {
@@ -96,6 +97,8 @@ export default function CercanosScreen() {
     }
   }, [authLoading, user]);
   useEffect(() => {
+    let locationSubscription: any;
+
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
@@ -114,24 +117,59 @@ export default function CercanosScreen() {
         longitude,
       }));
       setLoading(false);
+
+      locationSubscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          distanceInterval: 10,
+          timeInterval: 5000,
+        },
+        (loc) => {
+          setLocation(loc.coords);
+          setRegion((current) => ({
+            ...current,
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          }));
+        }
+      );
+      setWatcher(locationSubscription);
     })();
+
+    return () => {
+      if (locationSubscription?.remove) {
+        locationSubscription.remove();
+      }
+    };
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setUsers((currentUsers) =>
-        currentUsers.map((user) => ({
-          ...user,
-          coordinate: {
-            latitude: user.coordinate.latitude + (Math.random() - 0.5) * 0.0012,
-            longitude: user.coordinate.longitude + (Math.random() - 0.5) * 0.0012,
-          },
-        }))
-      );
+    const interval = setInterval(async () => {
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, latitude, longitude, avatar_url")
+        .neq("id", user.id)
+        .not("latitude", "is", null)
+        .not("longitude", "is", null)
+        .limit(20);
+
+      if (!error && data?.length) {
+        setUsers(
+          data.map((item: any) => ({
+            id: item.id,
+            name: item.full_name ?? "Usuario",
+            description: "Conectado cerca de ti",
+            coordinate: { latitude: item.latitude, longitude: item.longitude },
+            color: "#3b82f6",
+          }))
+        );
+      }
     }, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [user]);
 
   function centerOnMe() {
     if (!location) return;
