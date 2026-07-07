@@ -5,12 +5,15 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Modal,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
+
 import { supabase } from "../lib/supabase";
 import { useUser } from "../lib/user-context";
 
@@ -18,97 +21,290 @@ const categorias = [
   "Todos",
   "Eventos",
   "Reuniones",
+  "Club",
+  "Preguntas",
+  "Amor",
   "Ayuda",
-];
-
-const postsIniciales = [
-  {
-    id: "1",
-    autor: "Carlos",
-    categoria: "Eventos",
-    tiempo: "Hace 2 horas",
-    titulo: "Torneo de Fútbol Universitario - Inscripciones Abiertas",
-    descripcion:
-      "Se abrieron las inscripciones para el torneo de fútbol. ¡No se lo pierdan!",
-    respuestas: 24,
-    likes: 56,
-    avatar: "https://i.pravatar.cc/150?img=12",
-  },
-  {
-    id: "2",
-    autor: "Ana",
-    categoria: "Reuniones",
-    tiempo: "Hace 5 horas",
-    titulo: "Nuevo Club de Lectura de Ciencia Ficción",
-    descripcion:
-      "Estamos formando un club de lectura enfocado en ciencia ficción.",
-    respuestas: 18,
-    likes: 42,
-    avatar: "https://i.pravatar.cc/150?img=32",
-  },
-  {
-    id: "3",
-    autor: "Luis",
-    categoria: "Ayuda",
-    tiempo: "Hace 1 día",
-    titulo: "¿Alguien para estudiar cálculo?",
-    descripcion:
-      "Busco compañeros para formar un grupo de estudio de Cálculo II.",
-    respuestas: 31,
-    likes: 28,
-    avatar: "https://i.pravatar.cc/150?img=15",
-  },
 ];
 
 export default function ForosScreen() {
   const { user, loading } = useUser();
   const router = useRouter();
-  const [posts, setPosts] = useState(postsIniciales);
   const [fetching, setFetching] = useState(true);
   const [busqueda, setBusqueda] = useState("");
   const [categoria, setCategoria] = useState("Todos");
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/login");
+const [foros, setForos] = useState<any[]>([]);
+
+  const [titulo, setTitulo] = useState("");
+  const [descripcion, setDescripcion] = useState("");
+  const [categoriaNueva, setCategoriaNueva] = useState("Eventos");
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modoEdicion, setModoEdicion] = useState(false);
+  const [foroEditando, setForoEditando] = useState<any>(null);
+
+  const [modalRespuestas, setModalRespuestas] = useState(false);
+const [foroSeleccionado, setForoSeleccionado] = useState<any>(null);
+const [respuestas, setRespuestas] = useState<any[]>([]);
+const [nuevaRespuesta, setNuevaRespuesta] = useState("");
+
+useEffect(() => {
+  console.log("USER:", user);
+  console.log("LOADING:", loading);
+
+if (!loading && !user) {
+  setFetching(false);
+  router.replace("/login");
+  return;
+}
+
+  if (user) {
+    console.log("Cargando foros...");
+    cargarForos();
+  }
+}, [loading, user]);
+
+
+  const cargarForos = async () => {
+  setFetching(true);
+
+  const { data, error } = await supabase
+    .from("foros")
+    .select("*")
+    .order("creado", { ascending: false });
+
+  console.log("DATA:", data);
+  console.log("ERROR:", error);
+
+  if (error) {
+    alert(error.message);
+    setFetching(false);
+    return;
+  }
+
+  setForos(data ?? []);
+  setFetching(false);
+};
+
+const editarForo = (foro: any) => {
+  setModoEdicion(true);
+  setForoEditando(foro);
+
+  setTitulo(foro.titulo);
+  setDescripcion(foro.descripcion);
+  setCategoriaNueva(foro.categoria);
+
+  setModalVisible(true);
+};
+
+const eliminarForo = async (id: number) => {
+  const { error } = await supabase
+    .from("foros")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert("Foro eliminado");
+  cargarForos();
+};
+
+const verRespuestas = async (foro:any)=>{
+
+  setForoSeleccionado(foro);
+
+  const {data,error}=await supabase
+    .from("respuestas")
+    .select("*")
+    .eq("foro_id",foro.id)
+    .order("creado",{ascending:false});
+
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+
+  setRespuestas(data ?? []);
+  setModalRespuestas(true);
+};
+
+const agregarRespuesta = async () => {
+
+  if (!nuevaRespuesta.trim()) {
+    return;
+  }
+
+  if (!user) {
+    alert("Inicia sesión");
+    return;
+  }
+
+
+  // guardar respuesta
+  const { error } = await supabase
+    .from("respuestas")
+    .insert({
+      foro_id: foroSeleccionado.id,
+      user_id: user.id,
+      autor: user.email,
+      mensaje: nuevaRespuesta.trim()
+    });
+
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+
+  // aumentar contador del foro
+  await supabase
+    .from("foros")
+    .update({
+      respuestas: (foroSeleccionado.respuestas ?? 0) + 1
+    })
+    .eq("id", foroSeleccionado.id);
+
+
+  setNuevaRespuesta("");
+
+  verRespuestas(foroSeleccionado);
+
+};
+
+const darLike = async (foro: any) => {
+
+  if (!user) return;
+
+  const { error } = await supabase
+    .from("likes_foros")
+    .insert({
+      foro_id: foro.id,
+      user_id: user.id,
+    });
+
+  if (error) {
+
+    if (error.code === "23505") {
+      alert("Ya diste like");
       return;
     }
 
-    if (user) {
-      (async () => {
-        const { data, error } = await supabase
-          .from("posts")
-          .select("id, author, category, inserted_at, title, description, response_count, likes, avatar_url")
-          .order("inserted_at", { ascending: false })
-          .limit(20);
+    alert(error.message);
+    return;
+  }
 
-        if (!error && data?.length) {
-          setPosts(
-            data.map((item: any) => ({
-              id: item.id,
-              autor: item.author ?? "Usuario",
-              categoria: item.category ?? "General",
-              tiempo: item.inserted_at ? new Date(item.inserted_at).toLocaleString() : "Reciente",
-              titulo: item.title ?? "Sin título",
-              descripcion: item.description ?? "",
-              respuestas: item.response_count ?? 0,
-              likes: item.likes ?? 0,
-              avatar: item.avatar_url ?? `https://api.dicebear.com/6.x/initials/svg?seed=${encodeURIComponent(item.author ?? "user")}`,
-            }))
-          );
-        }
-        setFetching(false);
-      })();
-    }
-  }, [loading, user]);
+  await supabase
+    .from("foros")
+    .update({
+      likes: (foro.likes ?? 0) + 1
+    })
+    .eq("id", foro.id);
 
-  const filtrados = posts.filter((post) => {
+  cargarForos();
+};
+
+
+const actualizarForo = async () => {
+  if (!foroEditando) return;
+
+  console.log("ID:", foroEditando.id);
+
+  const { data, error, status } = await supabase
+    .from("foros")
+    .update({
+      titulo: titulo.trim(),
+      descripcion: descripcion.trim(),
+      categoria: categoriaNueva,
+    })
+    .eq("id", foroEditando.id)
+    .select();
+
+  console.log("STATUS:", status);
+  console.log("DATA:", data);
+  console.log("ERROR:", error);
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert("Actualizado");
+  cerrarModal();
+  cargarForos();
+};
+
+const cerrarModal = () => {
+  setModalVisible(false);
+
+  setModoEdicion(false);
+  setForoEditando(null);
+
+  setTitulo("");
+  setDescripcion("");
+  setCategoriaNueva("Eventos");
+};
+
+const crearForo = async () => {
+
+  if (!titulo.trim() || !descripcion.trim()) {
+    alert("Completa todos los campos");
+    return;
+  }
+
+  if (!user) {
+    alert("Debes iniciar sesión");
+    return;
+  }
+
+  const nuevoForo = {
+    autor: user.email,
+    titulo: titulo.trim(),
+    descripcion: descripcion.trim(),
+    categoria: categoriaNueva,
+    likes: 0,
+    respuestas: 0,
+  };
+
+
+  console.log("Insertando:", nuevoForo);
+
+
+  const { data, error } = await supabase
+    .from("foros")
+    .insert(nuevoForo)
+    .select();
+
+
+  console.log("Respuesta Supabase:", data);
+  console.log("Error Supabase:", error);
+
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert("Foro creado correctamente");
+
+  cerrarModal();
+
+
+  cargarForos();
+};
+
+  const filtrados = foros.filter((foro) => {
     const coincideTexto =
-      post.titulo.toLowerCase().includes(busqueda.toLowerCase()) ||
-      post.descripcion.toLowerCase().includes(busqueda.toLowerCase());
+      foro.titulo.toLowerCase().includes(busqueda.toLowerCase()) ||
+      foro.descripcion.toLowerCase().includes(busqueda.toLowerCase());
 
     const coincideCategoria =
-      categoria === "Todos" || post.categoria === categoria;
+      categoria === "Todos" || foro.categoria === categoria;
 
     return coincideTexto && coincideCategoria;
   });
@@ -117,11 +313,14 @@ export default function ForosScreen() {
     <View style={styles.postCard}>
       <View style={styles.headerPost}>
         <View style={styles.userInfo}>
-          <Image
-            source={{ uri: item.avatar }}
-            style={styles.avatar}
-          />
-
+<Image
+  source={{
+    uri:
+      item.avatar ??
+      "https://i.pravatar.cc/150",
+  }}
+  style={styles.avatar}
+/>
           <View>
             <Text style={styles.tituloPost}>
               {item.titulo}
@@ -143,28 +342,28 @@ export default function ForosScreen() {
               <Text style={styles.dot}>•</Text>
 
               <Text style={styles.tiempo}>
-                {item.tiempo}
+                {new Date(item.creado).toLocaleDateString()}
               </Text>
             </View>
           </View>
         </View>
 
         <View style={styles.actions}>
-          <TouchableOpacity>
-            <Ionicons
+          <TouchableOpacity onPress={() => editarForo(item)}>
+              <Ionicons
               name="create-outline"
               size={20}
               color="#64748b"
             />
           </TouchableOpacity>
 
-          <TouchableOpacity>
-            <Ionicons
-              name="trash-outline"
-              size={20}
-              color="#ef4444"
-            />
-          </TouchableOpacity>
+<TouchableOpacity onPress={() => eliminarForo(item.id)}>
+  <Ionicons
+    name="trash-outline"
+    size={20}
+    color="#ef4444"
+  />
+</TouchableOpacity>
         </View>
       </View>
 
@@ -173,18 +372,27 @@ export default function ForosScreen() {
       </Text>
 
       <View style={styles.footer}>
-        <View style={styles.footerItem}>
-          <Ionicons
-            name="chatbubble-outline"
-            size={18}
-            color="#64748b"
-          />
-          <Text style={styles.footerText}>
-            {item.respuestas} respuestas
-          </Text>
-        </View>
+<TouchableOpacity
+  style={styles.footerItem}
+  onPress={() => verRespuestas(item)}
+>
 
-        <View style={styles.footerItem}>
+  <Ionicons
+    name="chatbubble-outline"
+    size={18}
+    color="#64748b"
+  />
+
+  <Text style={styles.footerText}>
+    {item.respuestas} respuestas
+  </Text>
+
+</TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.footerItem}
+          onPress={() => darLike(item)}
+        >
           <Ionicons
             name="thumbs-up-outline"
             size={18}
@@ -193,7 +401,7 @@ export default function ForosScreen() {
           <Text style={styles.footerText}>
             {item.likes}
           </Text>
-        </View>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -205,7 +413,7 @@ export default function ForosScreen() {
           Foros de la Comunidad
         </Text>
 
-        <TouchableOpacity style={styles.botonCrear}>
+        <TouchableOpacity style={styles.botonCrear} onPress={() => setModalVisible(true)}>
           <Ionicons
             name="add"
             size={20}
@@ -256,18 +464,223 @@ export default function ForosScreen() {
         ))}
       </View>
 
-      {fetching ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6f7e49" />
-        </View>
-      ) : (
-        <FlatList
-          data={filtrados}
-          keyExtractor={(item) => item.id}
-          renderItem={renderPost}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+{fetching ? (
+  <View style={styles.loadingContainer}>
+    <ActivityIndicator size="large" color="#6f7e49" />
+  </View>
+) : (
+  <>
+    <FlatList
+      data={filtrados}
+      keyExtractor={(item) => item.id}
+      renderItem={renderPost}
+      showsVerticalScrollIndicator={false}
+    />
+
+   <Modal
+      visible={modalVisible}
+      animationType="fade"
+      transparent
+      onRequestClose={() => setModalVisible(false)}
+    >
+  <Pressable
+    style={styles.modalOverlay}
+    onPress={() => setModalVisible(false)}
+  >
+    <Pressable
+      style={styles.modalContainer}
+      onPress={(e) => e.stopPropagation()}
+    >
+      <Text style={styles.modalTitle}>
+        {modoEdicion ? "Editar Foro" : "Crear Foro"}
+      </Text>
+
+      <TextInput
+        placeholder="Título"
+        value={titulo}
+        onChangeText={setTitulo}
+        style={styles.modalInput}
+      />
+
+      <TextInput
+        placeholder="Descripción"
+        value={descripcion}
+        onChangeText={setDescripcion}
+        multiline
+        style={styles.modalDescription}
+      />
+
+      <Text style={styles.categoriaTitulo}>
+        Categoría
+      </Text>
+
+      <View style={styles.categoriaSelector}>
+        {categorias
+          .filter((cat) => cat !== "Todos")
+          .map((cat) => (
+            <TouchableOpacity
+              key={cat}
+              onPress={() => setCategoriaNueva(cat)}
+              style={[
+                styles.categoriaModal,
+                categoriaNueva === cat &&
+                  styles.categoriaModalActiva,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.categoriaModalTexto,
+                  categoriaNueva === cat &&
+                    styles.categoriaModalTextoActivo,
+                ]}
+              >
+                {cat}
+              </Text>
+            </TouchableOpacity>
+          ))}
+      </View>
+
+      <View style={styles.modalButtons}>
+        <TouchableOpacity
+          style={styles.cancelarBtn}
+          onPress={() => setModalVisible(false)}
+        >
+          <Text style={styles.cancelarTexto}>
+            Cancelar
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.guardarBtn}
+          onPress={modoEdicion ? actualizarForo : crearForo}        
+          >
+          <Ionicons
+            name="checkmark"
+            size={18}
+            color="white"
+          />
+<Text style={styles.guardarTexto}>
+  {modoEdicion ? "Actualizar" : "Guardar"}
+</Text>
+        </TouchableOpacity>
+      </View>
+    </Pressable>
+  </Pressable>
+</Modal>
+
+<Modal
+  visible={modalRespuestas}
+  animationType="slide"
+  transparent
+  onRequestClose={() => setModalRespuestas(false)}
+>
+  <View style={styles.modalOverlay}>
+
+    <View style={styles.modalContainer}>
+
+      <Text style={styles.modalTitle}>
+        Respuestas
+      </Text>
+
+
+      <FlatList
+        data={respuestas}
+        keyExtractor={(item)=>item.id.toString()}
+        style={{maxHeight:250}}
+        renderItem={({item})=>(
+          <View
+            style={{
+              backgroundColor:"#F1F5F9",
+              padding:10,
+              borderRadius:10,
+              marginBottom:10
+            }}
+          >
+
+            <Text
+              style={{
+                fontWeight:"700",
+                color:"#334155"
+              }}
+            >
+              {item.autor}
+            </Text>
+
+
+            <Text>
+              {item.mensaje}
+            </Text>
+
+
+            <Text
+              style={{
+                fontSize:12,
+                color:"#64748b"
+              }}
+            >
+              {new Date(item.creado)
+              .toLocaleDateString()}
+            </Text>
+
+
+          </View>
+        )}
+      />
+
+
+      <TextInput
+        placeholder="Escribe una respuesta..."
+        value={nuevaRespuesta}
+        onChangeText={setNuevaRespuesta}
+        multiline
+        style={styles.modalDescription}
+      />
+
+
+      <View style={styles.modalButtons}>
+
+
+        <TouchableOpacity
+          style={styles.cancelarBtn}
+          onPress={()=>setModalRespuestas(false)}
+        >
+
+          <Text style={styles.cancelarTexto}>
+            Cerrar
+          </Text>
+
+        </TouchableOpacity>
+
+
+
+        <TouchableOpacity
+          style={styles.guardarBtn}
+          onPress={agregarRespuesta}
+        >
+
+          <Ionicons
+            name="send"
+            size={18}
+            color="white"
+          />
+
+          <Text style={styles.guardarTexto}>
+            Responder
+          </Text>
+
+        </TouchableOpacity>
+
+
+      </View>
+
+
+    </View>
+
+  </View>
+
+</Modal>
+  </>
+)}
     </View>
   );
 }
@@ -338,6 +751,121 @@ const styles = StyleSheet.create({
     marginRight: 8,
     backgroundColor: "white",
   },
+
+  modalOverlay: {
+  flex: 1,
+  backgroundColor: "rgba(0,0,0,0.45)",
+  justifyContent: "center",
+  alignItems: "center",
+},
+
+modalContainer: {
+  width: "82%",
+  backgroundColor: "#fff",
+  borderRadius: 18,
+  padding: 20,
+},
+
+modalTitle: {
+  fontSize: 22,
+  fontWeight: "700",
+  textAlign: "center",
+  marginBottom: 20,
+  color: "#334155",
+},
+
+modalInput: {
+  borderWidth: 1,
+  borderColor: "#E2E8F0",
+  borderRadius: 10,
+  padding: 12,
+  marginBottom: 12,
+},
+
+modalDescription: {
+  borderWidth: 1,
+  borderColor: "#E2E8F0",
+  borderRadius: 10,
+  padding: 12,
+  height: 90,
+  textAlignVertical: "top",
+},
+
+categoriaTitulo: {
+  marginTop: 15,
+  marginBottom: 10,
+  fontWeight: "600",
+  color: "#475569",
+},
+
+categoriaSelector: {
+  flexDirection: "row",
+  flexWrap: "wrap",
+  marginBottom: 20,
+},
+
+categoriaModal: {
+  borderWidth: 1,
+  borderColor: "#d1d5db",
+  borderRadius: 20,
+  paddingHorizontal: 14,
+  paddingVertical: 8,
+  marginRight: 8,
+  marginBottom: 8,
+  backgroundColor: "#F8FAFC",
+},
+
+categoriaModalActiva: {
+  backgroundColor: "#b9d27b",
+  borderColor: "#b9d27b",
+},
+
+categoriaModalTexto: {
+  color: "#64748b",
+  fontWeight: "600",
+},
+
+categoriaModalTextoActivo: {
+  color: "#fff",
+},
+
+modalButtons: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  marginTop: 5,
+},
+
+cancelarBtn: {
+  flex: 1,
+  marginRight: 8,
+  borderWidth: 1,
+  borderColor: "#CBD5E1",
+  borderRadius: 10,
+  paddingVertical: 12,
+  alignItems: "center",
+},
+
+cancelarTexto: {
+  fontWeight: "600",
+  color: "#475569",
+},
+
+guardarBtn: {
+  flex: 1,
+  marginLeft: 8,
+  backgroundColor: "#b9d27b",
+  borderRadius: 10,
+  paddingVertical: 12,
+  justifyContent: "center",
+  alignItems: "center",
+  flexDirection: "row",
+},
+
+guardarTexto: {
+  color: "white",
+  fontWeight: "700",
+  marginLeft: 5,
+},
 
   categoriaActiva: {
     backgroundColor: "#b9d27b",
