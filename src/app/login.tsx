@@ -142,7 +142,9 @@ export default function LoginScreen() {
 
     if (data?.user && !data.session) {
       // Requiere confirmación por correo/SMS antes de poder iniciar sesión.
-      await ensureProfile(data.user.id, name);
+      // No se puede crear el perfil todavía: sin sesión activa, Supabase (RLS)
+      // rechaza la escritura. El perfil se crea en el primer login real
+      // (ver fetchProfile en user-context.tsx).
       setIsSignUp(false);
       setPassword("");
       setConfirmPassword("");

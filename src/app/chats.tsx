@@ -64,7 +64,7 @@ export default function ChatsScreen() {
     (async () => {
       const { data, error } = await supabase
         .from("chats")
-        .select("id, title, last_message, updated_at, other_user, unread_count")
+        .select("id, last_message, updated_at, other_user, unread_count, online")
         .eq("user_id", user.id)
         .order("updated_at", { ascending: false });
 
@@ -72,14 +72,16 @@ export default function ChatsScreen() {
         setChats(
           data.map((item: any) => ({
             id: item.id,
-            name: item.other_user ?? item.title ?? "Contacto",
+            name: item.other_user ?? "Contacto",
             last_message: item.last_message ?? "",
             updated_at: item.updated_at ? new Date(item.updated_at).toLocaleString() : "",
             unread_count: item.unread_count ?? 0,
             initials: (item.other_user ?? "Usuario").substring(0, 1).toUpperCase(),
-            online: true,
+            online: !!item.online,
           }))
         );
+      } else if (error) {
+        console.warn("[chats.select] ", error.message);
       }
 
       setFetching(false);

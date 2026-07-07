@@ -30,9 +30,9 @@ export default function ChatThread() {
     (async () => {
       const { data, error } = await supabase
         .from("messages")
-        .select("id, chat_id, sender_id, body, inserted_at")
+        .select("id, chat_id, sender_id, message, created_at")
         .eq("chat_id", chatId)
-        .order("inserted_at", { ascending: true })
+        .order("created_at", { ascending: true })
         .limit(200);
 
       if (!error && data) {
@@ -46,18 +46,30 @@ export default function ChatThread() {
   async function sendMessage() {
     if (!text.trim() || !chatId || !user) return;
 
+    const messageText = text.trim();
     const newMsg = {
       chat_id: chatId,
       sender_id: user.id,
-      body: text.trim(),
+      message: messageText,
     };
 
     setText("");
 
-    const { data, error } = await supabase.from("messages").insert(newMsg).select("id, chat_id, sender_id, body, inserted_at");
+    const { data, error } = await supabase
+      .from("messages")
+      .insert(newMsg)
+      .select("id, chat_id, sender_id, message, created_at");
+
     if (!error && data?.length) {
       setMessages((m) => [...m, data[0]]);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 200);
+
+      await supabase
+        .from("chats")
+        .update({ last_message: messageText, updated_at: new Date().toISOString() })
+        .eq("id", chatId);
+    } else if (error) {
+      console.warn("[messages.insert] ", error.message);
     }
   }
 
@@ -77,8 +89,8 @@ export default function ChatThread() {
         keyExtractor={(i) => i.id}
         renderItem={({ item }) => (
           <View style={[styles.messageRow, item.sender_id === user?.id ? styles.ownMessage : styles.otherMessage]}>
-            <Text style={styles.messageText}>{item.body}</Text>
-            <Text style={styles.messageTime}>{item.inserted_at ? new Date(item.inserted_at).toLocaleTimeString() : ''}</Text>
+            <Text style={styles.messageText}>{item.message}</Text>
+            <Text style={styles.messageTime}>{item.created_at ? new Date(item.created_at).toLocaleTimeString() : ''}</Text>
           </View>
         )}
       />

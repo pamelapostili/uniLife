@@ -23,7 +23,7 @@ type UserContextValue = {
 
 const UserContext = createContext<UserContextValue | undefined>(undefined);
 
-async function fetchProfile(userId: string, email?: string | null): Promise<Profile> {
+async function fetchProfile(userId: string, email?: string | null, metadataFullName?: string | null): Promise<Profile> {
   const { data, error } = await supabase
     .from("profiles")
     .select("id, full_name, avatar_url, bio, interests, latitude, longitude")
@@ -34,15 +34,30 @@ async function fetchProfile(userId: string, email?: string | null): Promise<Prof
     return data as Profile;
   }
 
-  return {
+  const fallback: Profile = {
     id: userId,
-    full_name: email ? email.split("@")[0] : "Usuario",
+    full_name: metadataFullName || (email ? email.split("@")[0] : "Usuario"),
     avatar_url: `https://api.dicebear.com/6.x/initials/svg?seed=${encodeURIComponent(
       email ?? "user"
     )}`,
     bio: "Este usuario aún no tiene biografía.",
     interests: ["Lectura", "Tecnología", "Café"],
   };
+
+  // No existía la fila en la BD (p. ej. primer login tras confirmar cuenta): la creamos de verdad.
+  const { error: upsertError } = await supabase.from("profiles").upsert({
+    id: fallback.id,
+    full_name: fallback.full_name,
+    avatar_url: fallback.avatar_url,
+    bio: fallback.bio,
+    interests: fallback.interests,
+  });
+
+  if (upsertError) {
+    console.warn("[profiles.upsert fallback] ", upsertError.message);
+  }
+
+  return fallback;
 }
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
@@ -63,7 +78,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setUser(data.session?.user ?? null);
 
       if (data.session?.user) {
-        const profileData = await fetchProfile(data.session.user.id, data.session.user.email);
+        const profileData = await fetchProfile(
+          data.session.user.id,
+          data.session.user.email,
+          data.session.user.user_metadata?.full_name
+        );
         if (mounted) {
           setProfile(profileData);
         }
@@ -82,7 +101,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         setUser(newSession?.user ?? null);
 
         if (newSession?.user) {
-          const profileData = await fetchProfile(newSession.user.id, newSession.user.email);
+          const profileData = await fetchProfile(
+            newSession.user.id,
+            newSession.user.email,
+            newSession.user.user_metadata?.full_name
+          );
           setProfile(profileData);
         } else {
           setProfile(null);

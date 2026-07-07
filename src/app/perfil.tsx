@@ -1,26 +1,83 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
+    Alert,
     Image,
+    Modal,
+    Platform,
+    Pressable,
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from "react-native";
+import { supabase } from "../lib/supabase";
 import { useUser } from "../lib/user-context";
 
 export default function PerfilScreen() {
-  const { user, profile, loading, signOut } = useUser();
+  const { user, profile, loading, signOut, refreshProfile } = useUser();
   const router = useRouter();
+
+  const [editVisible, setEditVisible] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [nombre, setNombre] = useState("");
+  const [bio, setBio] = useState("");
+  const [interesesTexto, setInteresesTexto] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
 
   useEffect(() => {
     if (!loading && !user) {
       router.replace("/login");
     }
   }, [loading, user]);
+
+  function openEdit() {
+    setNombre(profile?.full_name ?? "");
+    setBio(profile?.bio ?? "");
+    setInteresesTexto((profile?.interests ?? []).join(", "));
+    setAvatarUrl(profile?.avatar_url ?? "");
+    setEditVisible(true);
+  }
+
+  async function guardarPerfil() {
+    if (!user) return;
+
+    setSavingProfile(true);
+    const interests = interesesTexto
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        full_name: nombre.trim() || null,
+        bio: bio.trim() || null,
+        interests,
+        avatar_url: avatarUrl.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", user.id);
+
+    setSavingProfile(false);
+
+    if (error) {
+      const msg = `No se pudo guardar: ${error.message}`;
+      if (Platform.OS === "web" && typeof window !== "undefined") {
+        window.alert(msg);
+      } else {
+        Alert.alert("Error", msg);
+      }
+      return;
+    }
+
+    await refreshProfile();
+    setEditVisible(false);
+  }
 
   if (loading || !user) {
     return (
@@ -30,30 +87,34 @@ export default function PerfilScreen() {
     );
   }
 
-  const intereses = profile?.interests ?? ["Lectura", "Tecnología", "Café", "Deportes"];
-
-  const estadisticas = [
-    { label: "Amigos", value: "128" },
-    { label: "Eventos", value: "14" },
-    { label: "Reto", value: "3" },
-  ];
+  const intereses = profile?.interests ?? [];
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.headerCard}>
         <Image
-          source={{ uri: "https://i.pravatar.cc/150?img=47" }}
+          source={{
+            uri:
+              profile?.avatar_url ||
+              `https://api.dicebear.com/6.x/initials/svg?seed=${encodeURIComponent(
+                profile?.full_name ?? user.email ?? "user"
+              )}`,
+          }}
           style={styles.avatar}
         />
 
         <View style={styles.headerInfo}>
           <Text style={styles.name}>{profile?.full_name ?? user.email?.split("@")[0]}</Text>
-          <Text style={styles.role}>{profile?.bio ?? "Sin descripción personal aún."}</Text>
           <Text style={styles.bio}>
             {profile?.bio ?? "Actualiza tu biografía para que otros te conozcan mejor."}
           </Text>
 
-          <TouchableOpacity style={styles.button} onPress={signOut}>
+          <TouchableOpacity style={styles.button} onPress={openEdit}>
+            <Ionicons name="create-outline" size={18} color="#fff" />
+            <Text style={styles.buttonText}>Editar perfil</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.button, styles.buttonSecondary]} onPress={signOut}>
             <Ionicons name="log-out-outline" size={18} color="#fff" />
             <Text style={styles.buttonText}>Cerrar sesión</Text>
           </TouchableOpacity>
@@ -62,38 +123,73 @@ export default function PerfilScreen() {
 
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Mis intereses</Text>
-        <View style={styles.tagsRow}>
-          {intereses.map((item) => (
-            <View key={item} style={styles.tag}>
-              <Text style={styles.tagText}>{item}</Text>
-            </View>
-          ))}
-        </View>
+        {intereses.length > 0 ? (
+          <View style={styles.tagsRow}>
+            {intereses.map((item) => (
+              <View key={item} style={styles.tag}>
+                <Text style={styles.tagText}>{item}</Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.emptyText}>Aún no agregas intereses. Toca "Editar perfil" para añadirlos.</Text>
+        )}
       </View>
 
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Resumen</Text>
-        <View style={styles.statsRow}>
-          {estadisticas.map((item) => (
-            <View key={item.label} style={styles.statBox}>
-              <Text style={styles.statValue}>{item.value}</Text>
-              <Text style={styles.statLabel}>{item.label}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
+      <Modal visible={editVisible} animationType="fade" transparent onRequestClose={() => setEditVisible(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setEditVisible(false)}>
+          <Pressable style={styles.modalContainer} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>Editar perfil</Text>
 
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Actividad reciente</Text>
-        <View style={styles.activityItem}>
-          <Ionicons name="calendar-outline" size={18} color="#6f7e49" />
-          <Text style={styles.activityText}>Participaste en 2 eventos esta semana</Text>
-        </View>
-        <View style={styles.activityItem}>
-          <Ionicons name="chatbubble-outline" size={18} color="#6f7e49" />
-          <Text style={styles.activityText}>Respondiste en 3 foros de comunidad</Text>
-        </View>
-      </View>
+            <TextInput
+              placeholder="Nombre completo"
+              value={nombre}
+              onChangeText={setNombre}
+              style={styles.modalInput}
+            />
+
+            <TextInput
+              placeholder="Biografía"
+              value={bio}
+              onChangeText={setBio}
+              multiline
+              style={styles.modalDescription}
+            />
+
+            <TextInput
+              placeholder="Intereses (separados por coma)"
+              value={interesesTexto}
+              onChangeText={setInteresesTexto}
+              style={styles.modalInput}
+            />
+
+            <TextInput
+              placeholder="URL de foto de perfil (opcional)"
+              value={avatarUrl}
+              onChangeText={setAvatarUrl}
+              autoCapitalize="none"
+              style={styles.modalInput}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.cancelarBtn} onPress={() => setEditVisible(false)}>
+                <Text style={styles.cancelarTexto}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.guardarBtn} onPress={guardarPerfil} disabled={savingProfile}>
+                {savingProfile ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark" size={18} color="white" />
+                    <Text style={styles.guardarTexto}>Guardar</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }
@@ -226,5 +322,80 @@ const styles = StyleSheet.create({
   activityText: {
     marginLeft: 8,
     color: "#334155",
+  },
+  buttonSecondary: {
+    backgroundColor: "#94a3b8",
+  },
+  emptyText: {
+    color: "#94a3b8",
+    fontSize: 13,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContainer: {
+    width: "85%",
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 16,
+    color: "#334155",
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  modalDescription: {
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 10,
+    padding: 12,
+    height: 80,
+    textAlignVertical: "top",
+    marginBottom: 12,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 5,
+  },
+  cancelarBtn: {
+    flex: 1,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  cancelarTexto: {
+    fontWeight: "600",
+    color: "#475569",
+  },
+  guardarBtn: {
+    flex: 1,
+    marginLeft: 8,
+    backgroundColor: "#6f7e49",
+    borderRadius: 10,
+    paddingVertical: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
+  },
+  guardarTexto: {
+    color: "white",
+    fontWeight: "700",
+    marginLeft: 5,
   },
 });

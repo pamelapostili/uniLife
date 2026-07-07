@@ -1,17 +1,16 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    FlatList,
+    KeyboardAvoidingView,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import EmojiSelector from 'react-native-emoji-selector';
 import { supabase } from "../lib/supabase";
 import { useUser } from "../lib/user-context";
 
@@ -35,133 +34,152 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [showEmojis, setShowEmojis] = useState(false);
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef = useRef<FlatList<Message> | null>(null);
 
   const chatIdParam = chatId as string;
 
-  // Cargar mensajes
-useEffect(() => {
-  const fetchMessages = async () => {
-    if (!chatIdParam) return;
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!chatIdParam) return;
 
-    console.log('📥 Cargando mensajes para chat:', chatIdParam);
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("chat_id", chatIdParam)
+        .order("created_at", { ascending: true });
 
-    const { data, error } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("chat_id", chatIdParam)
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      console.error('❌ Error al cargar mensajes:', error);
-    } else {
-      console.log('✅ Mensajes cargados:', data?.length);
-      setMessages(data || []);
-    }
-    setLoading(false);
-  };
-
-  fetchMessages();
-
-  // Suscripción en tiempo real
-  console.log('🔌 Suscribiendo a mensajes...');
-  const subscription = supabase
-    .channel(`messages:${chatIdParam}`)
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `chat_id=eq.${chatIdParam}`,
-      },
-      (payload) => {
-        console.log('📡 Nuevo mensaje recibido:', payload);
-        setMessages(prev => {
-          const newMessages = [...prev, payload.new as Message];
-          console.log('📊 Total mensajes:', newMessages.length);
-          return newMessages;
-        });
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
+      if (error) {
+        console.error("Error loading messages:", error);
+      } else {
+        setMessages(data || []);
       }
-    )
-    .subscribe((status) => {
-      console.log('📡 Estado de suscripción:', status);
+      setLoading(false);
+    };
+
+    fetchMessages();
+
+    const subscription = supabase
+      .channel(`messages:${chatIdParam}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `chat_id=eq.${chatIdParam}`,
+        },
+        (payload) => {
+          setMessages((prev) => {
+            const next = [...prev, payload.new as Message];
+            return next;
+          });
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [chatIdParam]);
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !user || !chatIdParam) return;
+
+    setSending(true);
+
+    const { error } = await supabase.from("messages").insert({
+      chat_id: chatIdParam,
+      sender_id: user.id,
+      message: newMessage.trim(),
     });
 
-  return () => {
-    console.log('🔌 Desuscribiendo...');
-    subscription.unsubscribe();
-  };
-}, [chatIdParam]);
+    if (error) {
+      console.error("Error sending message:", error);
+      setSending(false);
+      return;
+    }
 
-const sendMessage = async () => {
-  if (!newMessage.trim() || !user || !chatIdParam) return;
+    const { error: updateError } = await supabase
+      .from("chats")
+      .update({
+        last_message: newMessage.trim(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", chatIdParam);
 
-  setSending(true);
-  console.log('📤 Enviando mensaje:', newMessage.trim());
-  console.log('📌 Chat ID:', chatIdParam);
-  console.log('👤 User ID:', user.id);
+    if (updateError) {
+      console.error("Error updating chat:", updateError);
+    }
 
-  const { data, error } = await supabase.from("messages").insert({
-    chat_id: chatIdParam,
-    sender_id: user.id,
-    message: newMessage.trim(),
-  }).select(); // ← Añadimos .select() para ver el resultado
-
-  if (error) {
-    console.error('❌ Error al enviar:', error);
+    setNewMessage("");
     setSending(false);
-    return;
-  }
-
-  console.log('✅ Mensaje enviado:', data);
-  setNewMessage("");
-  
-  // Actualizar último mensaje en la tabla chats
-  const { error: updateError } = await supabase
-    .from("chats")
-    .update({
-      last_message: newMessage.trim(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", chatIdParam);
-
-  if (updateError) {
-    console.error('❌ Error al actualizar chat:', updateError);
-  }
-
-  setSending(false);
-  setShowEmojis(false);
-};
-  // Agregar emoji al mensaje
-  const addEmoji = (emoji: string) => {
-    setNewMessage(prev => prev + emoji);
     setShowEmojis(false);
   };
 
-  // Formatear fecha
+  const addEmoji = (emoji: string) => {
+    setNewMessage((prev) => prev + emoji);
+    setShowEmojis(false);
+  };
+
+  const emojiPalette = [
+    "😀",
+    "😂",
+    "😊",
+    "😍",
+    "😎",
+    "😢",
+    "😡",
+    "👍",
+    "🙏",
+    "🎉",
+    "🔥",
+    "🥳",
+    "💬",
+    "❤️",
+    "✨",
+    "😅",
+    "😉",
+    "😭",
+    "😇",
+    "🤔",
+  ];
+
+  const renderEmojiPalette = () => (
+    <View style={styles.emojiPaletteContainer}>
+      {emojiPalette.map((emoji) => (
+        <TouchableOpacity
+          key={emoji}
+          style={styles.emojiItem}
+          onPress={() => addEmoji(emoji)}
+        >
+          <Text style={styles.emojiText}>{emoji}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
   const formatMessageTime = (date: string) => {
     const msgDate = new Date(date);
     const now = new Date();
     const diff = now.getTime() - msgDate.getTime();
     const hours = Math.floor(diff / (1000 * 60 * 60));
-    
+
     if (hours < 24) {
-      return msgDate.toLocaleTimeString('es-ES', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } else {
-      return msgDate.toLocaleDateString('es-ES', {
-        day: '2-digit',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit'
+      return msgDate.toLocaleTimeString("es-ES", {
+        hour: "2-digit",
+        minute: "2-digit",
       });
     }
+
+    return msgDate.toLocaleDateString("es-ES", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   if (loading) {
@@ -173,10 +191,10 @@ const sendMessage = async () => {
   }
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -191,23 +209,27 @@ const sendMessage = async () => {
         data={messages}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <View style={[
-            styles.messageWrapper,
-            item.sender_id === user?.id ? styles.myMessageWrapper : styles.otherMessageWrapper
-          ]}>
-            <View style={[
-              styles.messageContainer,
-              item.sender_id === user?.id ? styles.myMessage : styles.otherMessage
-            ]}>
-              <Text style={[
-                styles.messageText,
-                item.sender_id === user?.id ? styles.myMessageText : styles.otherMessageText
-              ]}>
+          <View
+            style={[
+              styles.messageWrapper,
+              item.sender_id === user?.id ? styles.myMessageWrapper : styles.otherMessageWrapper,
+            ]}
+          >
+            <View
+              style={[
+                styles.messageContainer,
+                item.sender_id === user?.id ? styles.myMessage : styles.otherMessage,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.messageText,
+                  item.sender_id === user?.id ? styles.myMessageText : styles.otherMessageText,
+                ]}
+              >
                 {item.message}
               </Text>
-              <Text style={styles.messageTime}>
-                {formatMessageTime(item.created_at)}
-              </Text>
+              <Text style={styles.messageTime}>{formatMessageTime(item.created_at)}</Text>
             </View>
           </View>
         )}
@@ -218,22 +240,10 @@ const sendMessage = async () => {
         }}
       />
 
-      {showEmojis && (
-        <View style={styles.emojiContainer}>
-          <EmojiSelector
-            onEmojiSelected={addEmoji}
-            columns={8}
-            showSearchBar={false}
-            showSectionTitles={false}
-          />
-        </View>
-      )}
+      {showEmojis && <View style={styles.emojiContainer}>{renderEmojiPalette()}</View>}
 
       <View style={styles.inputContainer}>
-        <TouchableOpacity 
-          style={styles.emojiButton}
-          onPress={() => setShowEmojis(!showEmojis)}
-        >
+        <TouchableOpacity style={styles.emojiButton} onPress={() => setShowEmojis(!showEmojis)}>
           <Text style={styles.emojiButtonText}>😊</Text>
         </TouchableOpacity>
 
@@ -247,7 +257,7 @@ const sendMessage = async () => {
           maxLength={500}
         />
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.sendButton, (!newMessage.trim() || sending) && styles.sendButtonDisabled]}
           onPress={sendMessage}
           disabled={!newMessage.trim() || sending}
@@ -382,12 +392,28 @@ const styles = StyleSheet.create({
   sendButtonText: {
     color: "#FFFFFF",
     fontSize: 18,
-    transform: [{ rotate: '45deg' }],
+    transform: [{ rotate: "45deg" }],
   },
   emojiContainer: {
     height: 300,
     backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
     borderTopColor: "#E0E0E0",
+  },
+  emojiPaletteContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    padding: 10,
+    justifyContent: "space-between",
+  },
+  emojiItem: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  emojiText: {
+    fontSize: 22,
   },
 });

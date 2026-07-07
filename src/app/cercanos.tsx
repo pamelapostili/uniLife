@@ -96,6 +96,20 @@ export default function CercanosScreen() {
       setFetchingUsers(false);
     }
   }, [authLoading, user]);
+  // Guarda la ubicación del usuario logueado en su fila de "profiles" para que
+  // otros usuarios puedan verlo como "cercano" de verdad (antes nunca se sincronizaba).
+  async function saveMyLocation(latitude: number, longitude: number) {
+    if (!user) return;
+    const { error } = await supabase
+      .from("profiles")
+      .update({ latitude, longitude, updated_at: new Date().toISOString() })
+      .eq("id", user.id);
+
+    if (error) {
+      console.warn("[profiles.update location] ", error.message);
+    }
+  }
+
   useEffect(() => {
     let locationSubscription: any;
 
@@ -117,6 +131,7 @@ export default function CercanosScreen() {
         longitude,
       }));
       setLoading(false);
+      saveMyLocation(latitude, longitude);
 
       locationSubscription = await Location.watchPositionAsync(
         {
@@ -131,6 +146,7 @@ export default function CercanosScreen() {
             latitude: loc.coords.latitude,
             longitude: loc.coords.longitude,
           }));
+          saveMyLocation(loc.coords.latitude, loc.coords.longitude);
         }
       );
       setWatcher(locationSubscription);
@@ -141,7 +157,7 @@ export default function CercanosScreen() {
         locationSubscription.remove();
       }
     };
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     const interval = setInterval(async () => {
