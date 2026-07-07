@@ -7,6 +7,12 @@
     },
     "android": {
       "package": "com.anonymous.UniLife"
-    }
+    },
+    "plugins": [
+      "expo-image",
+      "expo-router",
+      "expo-splash-screen",
+      "expo-web-browser"
+    ]
   }
 }

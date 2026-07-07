@@ -1,28 +1,31 @@
 import { Ionicons } from "@expo/vector-icons";
+import Checkbox from "expo-checkbox";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { supabase } from "../lib/supabase";
 import { useUser } from "../lib/user-context";
-
 export default function LoginScreen() {
   const { user, loading: userLoading } = useUser();
   const [emailOrPhone, setEmailOrPhone] = useState("");
   const [name, setName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
 
   useEffect(() => {
     if (!userLoading && user) {
@@ -73,8 +76,8 @@ export default function LoginScreen() {
   }
 
   async function handleSignUp() {
-    if (!emailOrPhone || !password || !confirmPassword) {
-      Alert.alert("Completa los campos", "Rellena todos los campos de registro.");
+    if (!name || !lastName || !emailOrPhone || !password || !confirmPassword) {
+        Alert.alert("Completa los campos", "Rellena todos los campos de registro.");
       return;
     }
 
@@ -83,6 +86,14 @@ export default function LoginScreen() {
       return;
     }
 
+if (!acceptedPrivacy) {
+  Alert.alert(
+    "Políticas de Privacidad",
+    "Debes aceptar las Políticas de Privacidad para crear una cuenta."
+  );
+  return;
+}
+    
     setLoading(true);
 
     try {
@@ -100,17 +111,18 @@ export default function LoginScreen() {
 
       const { data, error } = result;
       if (error) {
-        Alert.alert("No se pudo crear la cuenta", error.message);
-        setLoading(false);
-        return;
-      }
+  console.log(error);
+  Alert.alert("Error", JSON.stringify(error));
+  setLoading(false);
+  return;
+}
 
       // If a user object is returned, create a profile row in the DB.
       const userId = data?.user?.id;
       if (userId) {
         await supabase.from("profiles").upsert({
           id: userId,
-          full_name: name || undefined,
+          full_name: `${name} ${lastName}` || undefined,
           avatar_url: undefined,
         });
 
@@ -140,26 +152,35 @@ export default function LoginScreen() {
     >
       <View style={styles.card}>
         <View style={styles.iconWrap}>
-          <Ionicons name="person-circle-outline" size={56} color="#6f7e49" />
+          <Ionicons name="person-circle-outline" size={56} color="#b9d27b" />
         </View>
 
-        <Text style={styles.title}>{isSignUp ? "Crear cuenta" : "Inicia sesión"}</Text>
+        <Text style={styles.title}>{isSignUp ? "Crear cuenta" : "Iniciar Sesión"}</Text>
         <Text style={styles.subtitle}>
-          {isSignUp ? "Regístrate y conecta con la comunidad" : "Accede a UniLife con tu cuenta de Supabase"}
+          {isSignUp ? "Regístrate a UniLife para conectar con comunidad UTP" : "Accede a UniLife para conectar con comunidad UTP"}
         </Text>
 
         {isSignUp && (
           <TextInput
             style={styles.input}
-            placeholder="Nombre completo (opcional)"
+            placeholder="Nombre"
             value={name}
             onChangeText={setName}
           />
         )}
 
+        {isSignUp && (
+          <TextInput
+            style={styles.input}
+            placeholder="Apellidos"
+            value={lastName}
+            onChangeText={setLastName}
+          />
+        )}
+
         <TextInput
           style={styles.input}
-          placeholder="Correo electrónico o teléfono"
+          placeholder="Correo Electrónico"
           autoCapitalize="none"
           keyboardType="email-address"
           value={emailOrPhone}
@@ -183,6 +204,30 @@ export default function LoginScreen() {
             onChangeText={setConfirmPassword}
           />
         )}
+
+{isSignUp && (
+  <View style={styles.privacyContainer}>
+    <Checkbox
+      value={acceptedPrivacy}
+      onValueChange={setAcceptedPrivacy}
+      color={acceptedPrivacy ? "#b9d27b" : undefined}
+    />
+
+    <Text style={styles.privacyText}>
+      He leído y acepto las{" "}
+      <Text
+        style={styles.link}
+        onPress={() =>
+          Linking.openURL(
+            "https://pamelapostili.github.io/uniLifePoliticas/"
+          )
+        }
+      >
+        Políticas de Privacidad
+      </Text>
+    </Text>
+  </View>
+)}
 
         <TouchableOpacity
           style={styles.button}
@@ -247,7 +292,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   button: {
-    backgroundColor: "#6f7e49",
+    backgroundColor: "#b9d27b",
     borderRadius: 12,
     paddingVertical: 13,
     alignItems: "center",
@@ -263,4 +308,23 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 12,
   },
+  privacyContainer: {
+  flexDirection: "row",
+  alignItems: "flex-start",
+  marginBottom: 15,
+},
+
+privacyText: {
+  flex: 1,
+  marginLeft: 10,
+  color: "#555",
+  fontSize: 13,
+  lineHeight: 18,
+},
+
+link: {
+  color: "#4A90E2",
+  textDecorationLine: "underline",
+  fontWeight: "600",
+},
 });
