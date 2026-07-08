@@ -629,7 +629,7 @@ const crearForo = async () => {
 
 
       <TextInput
-        placeholder="Escribe una respuesta..."
+        placeholder="Escribe una Respuesta..."
         value={nuevaRespuesta}
         onChangeText={setNuevaRespuesta}
         multiline
@@ -669,15 +669,9 @@ const crearForo = async () => {
           </Text>
 
         </TouchableOpacity>
-
-
       </View>
-
-
     </View>
-
   </View>
-
 </Modal>
   </>
 )}

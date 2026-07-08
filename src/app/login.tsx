@@ -1,39 +1,31 @@
 import { Ionicons } from "@expo/vector-icons";
+import Checkbox from "expo-checkbox";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { supabase } from "../lib/supabase";
 import { useUser } from "../lib/user-context";
-
 export default function LoginScreen() {
   const { user, loading: userLoading } = useUser();
   const [emailOrPhone, setEmailOrPhone] = useState("");
   const [name, setName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-  const [infoMessage, setInfoMessage] = useState<string | null>(null);
-
-  function showError(title: string, message?: string) {
-    const msg = message ?? "";
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      window.alert(`${title}\n${msg}`);
-    } else {
-      Alert.alert(title, msg);
-    }
-    setInfoMessage(`${title}: ${msg}`);
-  }
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
 
   useEffect(() => {
     if (!userLoading && user) {
@@ -49,111 +41,107 @@ export default function LoginScreen() {
     return /^\+?[0-9]{7,15}$/.test(value.replace(/\s+/g, ""));
   }
 
-  // Crea o actualiza la fila del usuario en la tabla "profiles" con datos reales.
-  async function ensureProfile(userId: string, fullName?: string) {
-    const { error } = await supabase.from("profiles").upsert(
-      {
-        id: userId,
-        full_name: fullName && fullName.trim().length > 0 ? fullName.trim() : undefined,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "id" }
-    );
-
-    if (error) {
-      console.warn("[profiles.upsert] ", error.message);
-    }
-  }
-
   async function handleLogin() {
     if (!emailOrPhone || !password) {
-      showError("Completa los campos", "Ingresa tu correo/teléfono y tu contraseña.");
+      Alert.alert("Completa los campos", "Ingresa tu correo/telefono y contraseña.");
       return;
     }
 
     setLoading(true);
-    const { data, error } = isValidEmail(emailOrPhone)
-      ? await supabase.auth.signInWithPassword({ email: emailOrPhone, password })
-      : isValidPhone(emailOrPhone)
-      ? await supabase.auth.signInWithPassword({ phone: emailOrPhone, password })
-      : { data: null, error: { message: "Ingresa un correo o número válido." } as any };
-    setLoading(false);
 
-    if (error) {
-      showError("No se pudo iniciar sesión", error.message);
+    const credentials: any = {};
+    if (isValidEmail(emailOrPhone)) {
+      credentials.email = emailOrPhone;
+    } else if (isValidPhone(emailOrPhone)) {
+      credentials.phone = emailOrPhone;
+    } else {
+      setLoading(false);
+      Alert.alert("Formato inválido", "Ingresa un correo o número válido.");
       return;
     }
 
-    if (data?.user) {
-      await ensureProfile(data.user.id, data.user.user_metadata?.full_name);
-      router.replace("/");
+    const { error } = await supabase.auth.signInWithPassword({
+      ...credentials,
+      password,
+    });
+
+    setLoading(false);
+
+    if (error) {
+      Alert.alert("No se pudo iniciar sesión", error.message);
+      return;
     }
+
+    router.replace("/");
   }
 
   async function handleSignUp() {
-    if (!emailOrPhone || !password || !confirmPassword) {
-      showError("Completa los campos", "Rellena todos los campos de registro.");
+    if (!name || !lastName || !emailOrPhone || !password || !confirmPassword) {
+        Alert.alert("Completa los campos", "Rellena todos los campos de registro.");
       return;
     }
 
     if (password !== confirmPassword) {
-      showError("Contraseñas no coinciden", "Verifica que las contraseñas coincidan.");
+      Alert.alert("Contraseñas no coinciden", "Verifica que las contraseñas coincidan.");
       return;
     }
 
-    if (password.length < 6) {
-      showError("Contraseña muy corta", "Usa al menos 6 caracteres.");
-      return;
-    }
-
-    const isEmail = isValidEmail(emailOrPhone);
-    const isPhone = isValidPhone(emailOrPhone);
-
-    if (!isEmail && !isPhone) {
-      showError("Formato inválido", "Ingresa un correo o número válido.");
-      return;
-    }
-
+if (!acceptedPrivacy) {
+  Alert.alert(
+    "Políticas de Privacidad",
+    "Debes aceptar las Políticas de Privacidad para crear una cuenta."
+  );
+  return;
+}
+    
     setLoading(true);
-    const { data, error } = isEmail
-      ? await supabase.auth.signUp({
-          email: emailOrPhone,
-          password,
-          options: { data: { full_name: name || undefined } },
-        })
-      : await supabase.auth.signUp({
-          phone: emailOrPhone,
-          password,
-          options: { data: { full_name: name || undefined } },
+
+    try {
+      let result: any;
+
+      if (isValidEmail(emailOrPhone)) {
+        result = await supabase.auth.signUp({ email: emailOrPhone, password });
+      } else if (isValidPhone(emailOrPhone)) {
+        result = await supabase.auth.signUp({ phone: emailOrPhone, password });
+      } else {
+        setLoading(false);
+        Alert.alert("Formato inválido", "Ingresa un correo o número válido.");
+        return;
+      }
+
+      const { data, error } = result;
+      if (error) {
+  console.log(error);
+  Alert.alert("Error", JSON.stringify(error));
+  setLoading(false);
+  return;
+}
+
+      // If a user object is returned, create a profile row in the DB.
+      const userId = data?.user?.id;
+      if (userId) {
+        await supabase.from("profiles").upsert({
+          id: userId,
+          full_name: `${name} ${lastName}` || undefined,
+          avatar_url: undefined,
         });
-    setLoading(false);
 
-    if (error) {
-      showError("No se pudo crear la cuenta", error.message);
-      return;
-    }
-
-    if (data?.session && data.user) {
-      // Confirmación automática habilitada: ya hay sesión activa.
-      await ensureProfile(data.user.id, name);
-      router.replace("/");
-      return;
-    }
-
-    if (data?.user && !data.session) {
-      // Requiere confirmación por correo/SMS antes de poder iniciar sesión.
-      // No se puede crear el perfil todavía: sin sesión activa, Supabase (RLS)
-      // rechaza la escritura. El perfil se crea en el primer login real
-      // (ver fetchProfile en user-context.tsx).
-      setIsSignUp(false);
-      setPassword("");
-      setConfirmPassword("");
-      showError(
-        "Confirma tu cuenta",
-        isEmail
-          ? "Revisa tu correo y confirma tu cuenta antes de iniciar sesión."
-          : "Revisa tu teléfono y confirma tu cuenta antes de iniciar sesión."
-      );
+        Alert.alert("Cuenta creada", "Tu cuenta ha sido creada correctamente.");
+        // If signup returned a session, navigate inmediatly.
+        if (data?.session) {
+          router.replace("/");
+        }
+      } else {
+        // No immediate user (email confirmation required)
+        Alert.alert(
+          "Registro registrado",
+          "Revisa tu correo o teléfono para completar la verificación."
+        );
+      }
+    } catch (e: any) {
+      Alert.alert("Error", e?.message ?? String(e));
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -164,32 +152,35 @@ export default function LoginScreen() {
     >
       <View style={styles.card}>
         <View style={styles.iconWrap}>
-          <Ionicons name="person-circle-outline" size={56} color="#6f7e49" />
+          <Ionicons name="person-circle-outline" size={56} color="#b9d27b" />
         </View>
 
-        <Text style={styles.title}>{isSignUp ? "Crear cuenta" : "Inicia sesión"}</Text>
+        <Text style={styles.title}>{isSignUp ? "Crear cuenta" : "Iniciar Sesión"}</Text>
         <Text style={styles.subtitle}>
-          {isSignUp ? "Regístrate y conecta con la comunidad" : "Accede a UniLife con tu cuenta de Supabase"}
+          {isSignUp ? "Regístrate a UniLife para conectar con comunidad UTP" : "Accede a UniLife para conectar con comunidad UTP"}
         </Text>
-
-        {infoMessage ? (
-          <View style={{ padding: 8, backgroundColor: "#fff3bf", borderRadius: 8, marginBottom: 10 }}>
-            <Text style={{ color: "#856404" }}>{infoMessage}</Text>
-          </View>
-        ) : null}
 
         {isSignUp && (
           <TextInput
             style={styles.input}
-            placeholder="Nombre completo (opcional)"
+            placeholder="Nombre"
             value={name}
             onChangeText={setName}
           />
         )}
 
+        {isSignUp && (
+          <TextInput
+            style={styles.input}
+            placeholder="Apellidos"
+            value={lastName}
+            onChangeText={setLastName}
+          />
+        )}
+
         <TextInput
           style={styles.input}
-          placeholder="Correo electrónico o teléfono"
+          placeholder="Correo Electrónico"
           autoCapitalize="none"
           keyboardType="email-address"
           value={emailOrPhone}
@@ -214,6 +205,30 @@ export default function LoginScreen() {
           />
         )}
 
+{isSignUp && (
+  <View style={styles.privacyContainer}>
+    <Checkbox
+      value={acceptedPrivacy}
+      onValueChange={setAcceptedPrivacy}
+      color={acceptedPrivacy ? "#b9d27b" : undefined}
+    />
+
+    <Text style={styles.privacyText}>
+      He leído y acepto las{" "}
+      <Text
+        style={styles.link}
+        onPress={() =>
+          Linking.openURL(
+            "https://pamelapostili.github.io/uniLifePoliticas/"
+          )
+        }
+      >
+        Políticas de Privacidad
+      </Text>
+    </Text>
+  </View>
+)}
+
         <TouchableOpacity
           style={styles.button}
           onPress={isSignUp ? handleSignUp : handleLogin}
@@ -222,12 +237,12 @@ export default function LoginScreen() {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>{isSignUp ? "Crear cuenta" : "Iniciar sesión"}</Text>
+            <Text style={styles.buttonText}>{isSignUp ? "Crear cuenta" : "Entrar"}</Text>
           )}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => setIsSignUp((s) => !s)} style={{ marginTop: 12 }}>
-          <Text style={[styles.note, { textDecorationLine: "underline" }]}>
+          <Text style={[styles.note, { textDecorationLine: 'underline' }]}> 
             {isSignUp ? "¿Ya tienes cuenta? Iniciar sesión" : "¿No tienes cuenta? Crear cuenta"}
           </Text>
         </TouchableOpacity>
@@ -277,7 +292,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   button: {
-    backgroundColor: "#6f7e49",
+    backgroundColor: "#b9d27b",
     borderRadius: 12,
     paddingVertical: 13,
     alignItems: "center",
@@ -293,4 +308,23 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 12,
   },
+  privacyContainer: {
+  flexDirection: "row",
+  alignItems: "flex-start",
+  marginBottom: 15,
+},
+
+privacyText: {
+  flex: 1,
+  marginLeft: 10,
+  color: "#555",
+  fontSize: 13,
+  lineHeight: 18,
+},
+
+link: {
+  color: "#4A90E2",
+  textDecorationLine: "underline",
+  fontWeight: "600",
+},
 });
