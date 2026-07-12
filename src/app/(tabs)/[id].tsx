@@ -11,8 +11,8 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { supabase } from "../lib/supabase";
-import { useUser } from "../lib/user-context";
+import { supabase } from "../../lib/supabase";
+import { useUser } from "../../lib/user-context";
 
 type Message = {
   id: string;

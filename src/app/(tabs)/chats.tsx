@@ -1,8 +1,8 @@
 ﻿import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { supabase } from "../lib/supabase";
-import { useUser } from "../lib/user-context";
+import { supabase } from "../../lib/supabase";
+import { useUser } from "../../lib/user-context";
 
 type ChatItem = {
   id: string;
