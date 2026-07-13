@@ -43,7 +43,7 @@ export default function Inicio() {
       icon: "heart-outline",
     },
     {
-      titulo: "Socializar",
+      titulo: "Colaborar",
       color: "#10b981",
       icon: "people-outline",
     },
@@ -53,17 +53,17 @@ export default function Inicio() {
       icon: "person-add-outline",
     },
     {
-      titulo: "Club de lectura",
+      titulo: "Clubes",
       color: "#a855f7",
       icon: "book-outline",
     },
     {
-      titulo: "Club de deporte",
+      titulo: "Reunión",
       color: "#f97316",
       icon: "fitness-outline",
     },
     {
-      titulo: "Reto deportivo",
+      titulo: "Reto",
       color: "#eab308",
       icon: "trophy-outline",
     },
@@ -85,10 +85,15 @@ export default function Inicio() {
 
       <View style={styles.grid}>
         {opciones.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.card}
-          >
+<TouchableOpacity
+ key={index}
+ style={styles.card}
+ onPress={() =>
+   router.push(
+    `/usuarios/${item.titulo}`
+   )
+ }
+>
             <View
               style={[
                 styles.iconCircle,
