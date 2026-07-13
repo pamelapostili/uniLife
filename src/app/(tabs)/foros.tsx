@@ -2,16 +2,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Image,
-    Modal,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
 
 import { supabase } from "../../lib/supabase";
@@ -59,13 +59,13 @@ if (!loading && !user) {
 }
 
   if (user) {
-    console.log("Cargando foros...");
+    console.log("Cargando Foros...");
     cargarForos();
   }
 }, [loading, user]);
 
 
-  const cargarForos = async () => {
+const cargarForos = async () => {
   setFetching(true);
 
   const { data, error } = await supabase
@@ -81,9 +81,12 @@ if (!loading && !user) {
     setFetching(false);
     return;
   }
-
+setForos([]);
+setTimeout(() => {
   setForos(data ?? []);
-  setFetching(false);
+}, 100);
+
+setFetching(false);
 };
 
 const editarForo = (foro: any) => {
@@ -214,6 +217,7 @@ const actualizarForo = async () => {
   if (!foroEditando) return;
 
   console.log("ID:", foroEditando.id);
+  console.log("FOROS ANTES:", foros);
 
   const { data, error, status } = await supabase
     .from("foros")
@@ -234,9 +238,20 @@ const actualizarForo = async () => {
     return;
   }
 
+  if (data && data.length > 0) {
+    setForos((prev) =>
+      prev.map((f) =>
+        f.id === foroEditando.id
+          ? data[0]
+          : f
+      )
+    );
+
+    console.log("ACTUALIZADO EN ESTADO");
+  }
+
   alert("Actualizado");
   cerrarModal();
-  cargarForos();
 };
 
 const cerrarModal = () => {
@@ -472,7 +487,7 @@ const crearForo = async () => {
   <>
     <FlatList
       data={filtrados}
-      keyExtractor={(item) => item.id}
+      keyExtractor={(item) => String(item.id)}
       renderItem={renderPost}
       showsVerticalScrollIndicator={false}
     />
@@ -626,7 +641,6 @@ const crearForo = async () => {
           </View>
         )}
       />
-
 
       <TextInput
         placeholder="Escribe una Respuesta..."

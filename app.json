@@ -2,8 +2,11 @@
   "expo": {
     "name": "UniLife",
     "slug": "UniLife",
+    "scheme": "unilife",
     "extra": {
-      "apiUrl": "http://192.168.1.100/unilife-api"
+      "apiUrl": "http://192.168.1.100/unilife-api",
+            "usesCleartextTraffic": true
+
     },
     "android": {
       "package": "com.anonymous.UniLife"
