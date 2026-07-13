@@ -1,4 +1,5 @@
-﻿import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { supabase } from "../lib/supabase";
@@ -9,46 +10,76 @@ type ChatItem = {
   name: string;
   last_message: string;
   updated_at: string;
-  unread_count: number;
   initials: string;
-  online: boolean;
 };
-
-const initialChats: ChatItem[] = [
-  {
-    id: "1",
-    name: "Anita",
-    last_message: "¿Ya terminaste la tarea de bases de datos?",
-    updated_at: "10:42 AM",
-    unread_count: 2,
-    initials: "A",
-    online: true,
-  },
-  {
-    id: "2",
-    name: "Carlosss",
-    last_message: "Mañana nos vemos para Programación Web 👨‍💻",
-    updated_at: "Ayer",
-    unread_count: 0,
-    initials: "C",
-    online: false,
-  },
-  {
-    id: "3",
-    name: "Maria",
-    last_message: "¿Te unirás al grupo de estudio para cálculo?",
-    updated_at: "8:15 PM",
-    unread_count: 0,
-    initials: "M",
-    online: true,
-  },
-];
 
 export default function ChatsScreen() {
   const { user, loading } = useUser();
   const router = useRouter();
-  const [chats, setChats] = useState<ChatItem[]>(initialChats);
+  const [chats, setChats] = useState<ChatItem[]>([]);
   const [fetching, setFetching] = useState(true);
+
+  async function loadChats() {
+    if (!user) return;
+
+    const { data: participantRows, error: participantsError } = await supabase
+      .from("chat_participants")
+      .select("chat_id")
+      .eq("user_id", user.id);
+
+    if (participantsError) {
+      console.warn("[chat_participants.select] ", participantsError.message);
+      setFetching(false);
+      return;
+    }
+
+    const chatIds = (participantRows ?? []).map((r: any) => r.chat_id);
+    if (chatIds.length === 0) {
+      setChats([]);
+      setFetching(false);
+      return;
+    }
+
+    const [{ data: chatRows, error: chatsError }, { data: otherRows, error: otherError }] = await Promise.all([
+      supabase.from("chats").select("id, last_message, updated_at").in("id", chatIds),
+      supabase.from("chat_participants").select("chat_id, user_id").in("chat_id", chatIds).neq("user_id", user.id),
+    ]);
+
+    if (chatsError || otherError) {
+      console.warn("[chats.select] ", chatsError?.message ?? otherError?.message);
+      setFetching(false);
+      return;
+    }
+
+    const otherUserByChat = Object.fromEntries((otherRows ?? []).map((r: any) => [r.chat_id, r.user_id]));
+    const otherUserIds = Object.values(otherUserByChat) as string[];
+
+    let profileById: Record<string, { full_name: string | null }> = {};
+    if (otherUserIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", otherUserIds);
+      profileById = Object.fromEntries((profiles ?? []).map((p: any) => [p.id, p]));
+    }
+
+    const items: ChatItem[] = (chatRows ?? [])
+      .map((chat: any) => {
+        const otherId = otherUserByChat[chat.id];
+        const name = profileById[otherId]?.full_name ?? "Usuario";
+        return {
+          id: chat.id,
+          name,
+          last_message: chat.last_message ?? "Aún no hay mensajes",
+          updated_at: chat.updated_at ? new Date(chat.updated_at).toLocaleString() : "",
+          initials: name.substring(0, 1).toUpperCase(),
+        };
+      })
+      .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
+
+    setChats(items);
+    setFetching(false);
+  }
 
   useEffect(() => {
     if (!loading && !user) {
@@ -61,31 +92,25 @@ export default function ChatsScreen() {
       return;
     }
 
-    (async () => {
-      const { data, error } = await supabase
-        .from("chats")
-        .select("id, last_message, updated_at, other_user, unread_count, online")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false });
+    loadChats();
 
-      if (!error && data) {
-        setChats(
-          data.map((item: any) => ({
-            id: item.id,
-            name: item.other_user ?? "Contacto",
-            last_message: item.last_message ?? "",
-            updated_at: item.updated_at ? new Date(item.updated_at).toLocaleString() : "",
-            unread_count: item.unread_count ?? 0,
-            initials: (item.other_user ?? "Usuario").substring(0, 1).toUpperCase(),
-            online: !!item.online,
-          }))
-        );
-      } else if (error) {
-        console.warn("[chats.select] ", error.message);
-      }
+    const channel = supabase
+      .channel(`chat_participants:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "chat_participants",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => loadChats()
+      )
+      .subscribe();
 
-      setFetching(false);
-    })();
+    return () => {
+      channel.unsubscribe();
+    };
   }, [loading, user, router]);
 
   if (loading || fetching) {
@@ -97,39 +122,50 @@ export default function ChatsScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Mensajes</Text>
-
-      {chats.map((chat) => (
-        <TouchableOpacity key={chat.id} onPress={() => router.push(`/chat/${chat.id}`)} activeOpacity={0.8}>
-          <View style={styles.chatCard}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{chat.initials}</Text>
-              {chat.online && <View style={styles.onlineDot} />}
-            </View>
-
-            <View style={styles.chatInfo}>
-              <View style={styles.topRow}>
-                <Text style={styles.name}>{chat.name}</Text>
-                <Text style={styles.time}>{chat.updated_at}</Text>
-              </View>
-
-              <View style={styles.bottomRow}>
-                <Text style={styles.message} numberOfLines={1}>
-                  {chat.last_message}
-                </Text>
-
-                {chat.unread_count > 0 && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{chat.unread_count}</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          </View>
+    <View style={styles.container}>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>Mensajes</Text>
+        <TouchableOpacity style={styles.newChatButton} onPress={() => router.push("/nuevo-chat")}>
+          <Ionicons name="add" size={22} color="#fff" />
         </TouchableOpacity>
-      ))}
-    </ScrollView>
+      </View>
+
+      {chats.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="chatbubbles-outline" size={56} color="#b9d27b" />
+          <Text style={styles.emptyTitle}>Aún no tienes chats</Text>
+          <Text style={styles.emptySubtitle}>
+            Busca a alguien registrado en UniLife y envíale una solicitud para empezar a chatear.
+          </Text>
+          <TouchableOpacity style={styles.emptyButton} onPress={() => router.push("/nuevo-chat")}>
+            <Text style={styles.emptyButtonText}>+ Nuevo chat</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {chats.map((chat) => (
+            <TouchableOpacity key={chat.id} onPress={() => router.push(`/chat/${chat.id}`)} activeOpacity={0.8}>
+              <View style={styles.chatCard}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{chat.initials}</Text>
+                </View>
+
+                <View style={styles.chatInfo}>
+                  <View style={styles.topRow}>
+                    <Text style={styles.name}>{chat.name}</Text>
+                    <Text style={styles.time}>{chat.updated_at}</Text>
+                  </View>
+
+                  <Text style={styles.message} numberOfLines={1}>
+                    {chat.last_message}
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+    </View>
   );
 }
 
@@ -141,11 +177,61 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
 
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+
   title: {
     fontSize: 30,
     fontWeight: "700",
     color: "#b9d27b",
+  },
+
+  newChatButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#6f7e49",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  emptyState: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingBottom: 80,
+  },
+
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1B4079",
+    marginTop: 16,
+  },
+
+  emptySubtitle: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    marginTop: 8,
     marginBottom: 20,
+  },
+
+  emptyButton: {
+    backgroundColor: "#6f7e49",
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+
+  emptyButtonText: {
+    color: "#fff",
+    fontWeight: "700",
   },
 
   chatCard: {
@@ -181,18 +267,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 
-  onlineDot: {
-    position: "absolute",
-    bottom: 4,
-    right: 4,
-    width: 15,
-    height: 15,
-    borderRadius: 8,
-    backgroundColor: "#4CD964",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
-
   chatInfo: {
     flex: 1,
     marginLeft: 15,
@@ -202,11 +276,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 6,
-  },
-
-  bottomRow: {
-    flexDirection: "row",
-    alignItems: "center",
   },
 
   name: {
@@ -221,25 +290,8 @@ const styles = StyleSheet.create({
   },
 
   message: {
-    flex: 1,
     fontSize: 14,
     color: "#666",
-  },
-
-  badge: {
-    backgroundColor: "#20C997",
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 10,
-  },
-
-  badgeText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "bold",
   },
 
   loadingContainer: {

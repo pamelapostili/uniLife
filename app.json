@@ -12,7 +12,13 @@
       "expo-image",
       "expo-router",
       "expo-splash-screen",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "UniLife necesita acceso a tus fotos para que elijas tu foto de perfil."
+        }
+      ]
     ]
   }
 }

@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -15,6 +16,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { CATEGORIAS } from "../lib/categorias";
 import { supabase } from "../lib/supabase";
 import { useUser } from "../lib/user-context";
 
@@ -24,10 +26,10 @@ export default function PerfilScreen() {
 
   const [editVisible, setEditVisible] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [nombre, setNombre] = useState("");
   const [bio, setBio] = useState("");
   const [interesesTexto, setInteresesTexto] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -39,8 +41,15 @@ export default function PerfilScreen() {
     setNombre(profile?.full_name ?? "");
     setBio(profile?.bio ?? "");
     setInteresesTexto((profile?.interests ?? []).join(", "));
-    setAvatarUrl(profile?.avatar_url ?? "");
     setEditVisible(true);
+  }
+
+  function showErrorMsg(msg: string) {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.alert(msg);
+    } else {
+      Alert.alert("Error", msg);
+    }
   }
 
   async function guardarPerfil() {
@@ -58,7 +67,6 @@ export default function PerfilScreen() {
         full_name: nombre.trim() || null,
         bio: bio.trim() || null,
         interests,
-        avatar_url: avatarUrl.trim() || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", user.id);
@@ -66,17 +74,66 @@ export default function PerfilScreen() {
     setSavingProfile(false);
 
     if (error) {
-      const msg = `No se pudo guardar: ${error.message}`;
-      if (Platform.OS === "web" && typeof window !== "undefined") {
-        window.alert(msg);
-      } else {
-        Alert.alert("Error", msg);
-      }
+      showErrorMsg(`No se pudo guardar: ${error.message}`);
       return;
     }
 
     await refreshProfile();
     setEditVisible(false);
+  }
+
+  async function cambiarFoto() {
+    if (!user) return;
+
+    const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permiso.granted) {
+      showErrorMsg("Necesitamos acceso a tus fotos para cambiar tu foto de perfil.");
+      return;
+    }
+
+    const resultado = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (resultado.canceled || !resultado.assets?.length) {
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const asset = resultado.assets[0];
+      const ext = asset.uri.split(".").pop()?.toLowerCase() || "jpg";
+      const contentType = asset.mimeType ?? `image/${ext === "jpg" ? "jpeg" : ext}`;
+      const path = `${user.id}/avatar.${ext}`;
+
+      const response = await fetch(asset.uri);
+      const arrayBuffer = await response.arrayBuffer();
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, arrayBuffer, { contentType, upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage.from("avatars").getPublicUrl(path);
+      const avatarUrl = `${publicUrlData.publicUrl}?t=${Date.now()}`;
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: avatarUrl, updated_at: new Date().toISOString() })
+        .eq("id", user.id);
+
+      if (updateError) throw updateError;
+
+      await refreshProfile();
+    } catch (e: any) {
+      showErrorMsg(`No se pudo subir la foto: ${e.message ?? e}`);
+    } finally {
+      setUploadingPhoto(false);
+    }
   }
 
   if (loading || !user) {
@@ -88,20 +145,30 @@ export default function PerfilScreen() {
   }
 
   const intereses = profile?.interests ?? [];
+  const misGrupos = CATEGORIAS.filter((c) => intereses.includes(c.titulo));
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.headerCard}>
-        <Image
-          source={{
-            uri:
-              profile?.avatar_url ||
-              `https://api.dicebear.com/6.x/initials/svg?seed=${encodeURIComponent(
-                profile?.full_name ?? user.email ?? "user"
-              )}`,
-          }}
-          style={styles.avatar}
-        />
+        <TouchableOpacity onPress={cambiarFoto} disabled={uploadingPhoto} style={styles.avatarWrap}>
+          <Image
+            source={{
+              uri:
+                profile?.avatar_url ||
+                `https://api.dicebear.com/6.x/initials/svg?seed=${encodeURIComponent(
+                  profile?.full_name ?? user.email ?? "user"
+                )}`,
+            }}
+            style={styles.avatar}
+          />
+          <View style={styles.avatarEditBadge}>
+            {uploadingPhoto ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="camera" size={16} color="#fff" />
+            )}
+          </View>
+        </TouchableOpacity>
 
         <View style={styles.headerInfo}>
           <Text style={styles.name}>{profile?.full_name ?? user.email?.split("@")[0]}</Text>
@@ -119,6 +186,26 @@ export default function PerfilScreen() {
             <Text style={styles.buttonText}>Cerrar sesión</Text>
           </TouchableOpacity>
         </View>
+      </View>
+
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Mis grupos</Text>
+        {misGrupos.length > 0 ? (
+          <View style={styles.tagsRow}>
+            {misGrupos.map((item) => (
+              <TouchableOpacity
+                key={item.titulo}
+                style={[styles.tag, { backgroundColor: item.color }]}
+                onPress={() => router.push(`/grupo/${encodeURIComponent(item.titulo)}`)}
+              >
+                <Ionicons name={item.icon as any} size={14} color="#fff" />
+                <Text style={[styles.tagText, styles.tagTextLight]}>{item.titulo}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.emptyText}>Aún no te has unido a ningún grupo. Explora Inicio para encontrar uno.</Text>
+        )}
       </View>
 
       <View style={styles.sectionCard}>
@@ -160,14 +247,6 @@ export default function PerfilScreen() {
               placeholder="Intereses (separados por coma)"
               value={interesesTexto}
               onChangeText={setInteresesTexto}
-              style={styles.modalInput}
-            />
-
-            <TextInput
-              placeholder="URL de foto de perfil (opcional)"
-              value={avatarUrl}
-              onChangeText={setAvatarUrl}
-              autoCapitalize="none"
               style={styles.modalInput}
             />
 
@@ -219,12 +298,28 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
+  avatarWrap: {
+    alignSelf: "center",
+    marginBottom: 12,
+    position: "relative",
+  },
   avatar: {
     width: 90,
     height: 90,
     borderRadius: 45,
-    alignSelf: "center",
-    marginBottom: 12,
+  },
+  avatarEditBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#6f7e49",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
   },
   headerInfo: {
     alignItems: "center",
@@ -281,6 +376,8 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   tag: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#e7efcc",
     borderRadius: 999,
     paddingHorizontal: 12,
@@ -291,6 +388,10 @@ const styles = StyleSheet.create({
   tagText: {
     color: "#4b5563",
     fontWeight: "600",
+  },
+  tagTextLight: {
+    color: "#fff",
+    marginLeft: 6,
   },
   statsRow: {
     flexDirection: "row",

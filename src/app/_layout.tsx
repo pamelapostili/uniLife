@@ -1,16 +1,17 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import { UserProvider } from "../lib/user-context";
+import { UserProvider, useUser } from "../lib/user-context";
 
-export default function TabLayout() {
+function AppTabs() {
+  const { user } = useUser();
+
   return (
-    <UserProvider>
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: "#6f7e49",
-        }}
-      >
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: "#6f7e49",
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
@@ -52,6 +53,52 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
+        name="notificaciones"
+        options={{
+          title: "Notificaciones",
+          href: user ? "/notificaciones" : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="notifications-outline" size={size} color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="nuevo-chat"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="[id]"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="chat/[id]"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="grupo/[categoria]"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="usuario/[id]"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
         name="perfil"
         options={{
           title: "Perfil",
@@ -60,7 +107,25 @@ export default function TabLayout() {
           ),
         }}
       />
+
+      <Tabs.Screen
+        name="login"
+        options={{
+          title: "Iniciar sesión",
+          href: user ? null : "/login",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="log-in-outline" size={size} color={color} />
+          ),
+        }}
+      />
     </Tabs>
+  );
+}
+
+export default function TabLayout() {
+  return (
+    <UserProvider>
+      <AppTabs />
     </UserProvider>
   );
 }

@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { CATEGORIAS } from "../lib/categorias";
 import { supabase } from "../lib/supabase";
 import { useUser } from "../lib/user-context";
 
@@ -36,38 +37,7 @@ export default function Inicio() {
     })();
   }, [user]);
 
-  const opciones = [
-    {
-      titulo: "Citas",
-      color: "#ff3b8d",
-      icon: "heart-outline",
-    },
-    {
-      titulo: "Socializar",
-      color: "#10b981",
-      icon: "people-outline",
-    },
-    {
-      titulo: "Hacer amigos",
-      color: "#3b82f6",
-      icon: "person-add-outline",
-    },
-    {
-      titulo: "Club de lectura",
-      color: "#a855f7",
-      icon: "book-outline",
-    },
-    {
-      titulo: "Club de deporte",
-      color: "#f97316",
-      icon: "fitness-outline",
-    },
-    {
-      titulo: "Reto deportivo",
-      color: "#eab308",
-      icon: "trophy-outline",
-    },
-  ];
+  const misGrupos = profile?.interests ?? [];
 
   if (loading || !user) {
     return (
@@ -84,29 +54,39 @@ export default function Inicio() {
       </Text>
 
       <View style={styles.grid}>
-        {opciones.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.card}
-          >
-            <View
-              style={[
-                styles.iconCircle,
-                { backgroundColor: item.color },
-              ]}
+        {CATEGORIAS.map((item) => {
+          const unido = misGrupos.includes(item.titulo);
+          return (
+            <TouchableOpacity
+              key={item.titulo}
+              style={[styles.card, unido && styles.cardActive]}
+              onPress={() => router.push(`/grupo/${encodeURIComponent(item.titulo)}`)}
             >
-              <Ionicons
-                name={item.icon as any}
-                size={24}
-                color="#fff"
-              />
-            </View>
+              {unido && (
+                <View style={styles.checkBadge}>
+                  <Ionicons name="checkmark-circle" size={18} color="#6f7e49" />
+                </View>
+              )}
 
-            <Text style={styles.cardText}>
-              {item.titulo}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <View
+                style={[
+                  styles.iconCircle,
+                  { backgroundColor: item.color },
+                ]}
+              >
+                <Ionicons
+                  name={item.icon as any}
+                  size={24}
+                  color="#fff"
+                />
+              </View>
+
+              <Text style={styles.cardText}>
+                {item.titulo}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <Text style={styles.subtitle}>
@@ -119,7 +99,12 @@ export default function Inicio() {
         </View>
       ) : (
         recommended.map((person) => (
-          <View key={person.id} style={styles.profileCard}>
+          <TouchableOpacity
+            key={person.id}
+            style={styles.profileCard}
+            activeOpacity={0.85}
+            onPress={() => router.push(`/usuario/${person.id}`)}
+          >
             <Image
               source={{
                 uri:
@@ -152,7 +137,7 @@ export default function Inicio() {
                 ))}
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
         ))
       )}
     </ScrollView>
@@ -187,6 +172,18 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 15,
     alignItems: "center",
+    position: "relative",
+  },
+
+  cardActive: {
+    borderWidth: 2,
+    borderColor: "#6f7e49",
+  },
+
+  checkBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
   },
 
   iconCircle: {

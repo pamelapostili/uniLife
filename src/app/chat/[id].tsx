@@ -12,6 +12,7 @@ export default function ChatThread() {
   const [messages, setMessages] = useState<any[]>([]);
   const [fetching, setFetching] = useState(true);
   const [text, setText] = useState("");
+  const [otherName, setOtherName] = useState("Chat");
   const listRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -20,6 +21,29 @@ export default function ChatThread() {
       return;
     }
   }, [loading, user]);
+
+  useEffect(() => {
+    if (!chatId || !user) return;
+
+    (async () => {
+      const { data: otherRow } = await supabase
+        .from("chat_participants")
+        .select("user_id")
+        .eq("chat_id", chatId)
+        .neq("user_id", user.id)
+        .maybeSingle();
+
+      if (otherRow?.user_id) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", otherRow.user_id)
+          .maybeSingle();
+
+        setOtherName(profile?.full_name ?? "Usuario");
+      }
+    })();
+  }, [chatId, user]);
 
   useEffect(() => {
     if (!chatId || !user) {
@@ -83,6 +107,14 @@ export default function ChatThread() {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Text style={styles.backText}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{otherName}</Text>
+        <View style={styles.headerRight} />
+      </View>
+
       <FlatList
         ref={listRef}
         data={messages}
@@ -108,6 +140,18 @@ export default function ChatThread() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f7f8fa' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  header: {
+    backgroundColor: '#1B4079',
+    padding: 15,
+    paddingTop: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backButton: { paddingHorizontal: 5 },
+  backText: { color: '#FFFFFF', fontSize: 24 },
+  headerTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', flex: 1, textAlign: 'center' },
+  headerRight: { width: 30 },
   messageRow: { margin: 10, padding: 12, borderRadius: 12, maxWidth: '80%' },
   ownMessage: { alignSelf: 'flex-end', backgroundColor: '#6f7e49' },
   otherMessage: { alignSelf: 'flex-start', backgroundColor: '#e5e7eb' },
