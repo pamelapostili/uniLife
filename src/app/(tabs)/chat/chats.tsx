@@ -1,8 +1,8 @@
 ﻿import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { supabase } from "../../lib/supabase";
-import { useUser } from "../../lib/user-context";
+import { supabase } from "../../../lib/supabase";
+import { useUser } from "../../../lib/user-context";
 
 type ChatItem = {
   id: string;
@@ -101,7 +101,11 @@ export default function ChatsScreen() {
       <Text style={styles.title}>Mensajes</Text>
 
       {chats.map((chat) => (
-        <TouchableOpacity key={chat.id} onPress={() => router.push(`/chat/${chat.id}`)} activeOpacity={0.8}>
+        <TouchableOpacity 
+          key={chat.id} 
+          onPress={() => router.push(`/(tabs)/chat/${chat.id}`)}  // ← ¡CAMBIO AQUÍ!
+          activeOpacity={0.8}
+        >
           <View style={styles.chatCard}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{chat.initials}</Text>
