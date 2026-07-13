@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { supabase } from "../../../lib/supabase";
-import { useUser } from "../../../lib/user-context";
+import { supabase } from "../../lib/supabase";
+import { useUser } from "../../lib/user-context";
 
 export default function ChatThread() {
   const { user, loading } = useUser();
