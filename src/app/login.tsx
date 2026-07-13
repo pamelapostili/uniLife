@@ -76,6 +76,8 @@ export default function LoginScreen() {
   }
 
   async function handleSignUp() {
+if (loading) return;
+
     if (!name || !lastName || !emailOrPhone || !password || !confirmPassword) {
         Alert.alert("Completa los campos", "Rellena todos los campos de registro.");
       return;
@@ -119,25 +121,62 @@ if (!acceptedPrivacy) {
 
       // If a user object is returned, create a profile row in the DB.
       const userId = data?.user?.id;
-      if (userId) {
-        await supabase.from("profiles").upsert({
-          id: userId,
-          full_name: `${name} ${lastName}` || undefined,
-          avatar_url: undefined,
-        });
 
-        Alert.alert("Cuenta creada", "Tu cuenta ha sido creada correctamente.");
-        // If signup returned a session, navigate inmediatly.
-        if (data?.session) {
-          router.replace("/");
-        }
-      } else {
-        // No immediate user (email confirmation required)
-        Alert.alert(
-          "Registro registrado",
-          "Revisa tu correo o teléfono para completar la verificación."
-        );
-      }
+if (userId) {
+  const {
+  data: { session },
+} = await supabase.auth.getSession();
+
+console.log("SESSION:", session);
+console.log("USER ID:", userId);
+
+  // Guardar en profiles
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .upsert({
+      id: userId,
+      full_name: `${name} ${lastName}`,
+      phone: isValidPhone(emailOrPhone) ? emailOrPhone : null,
+      avatar_url: null,
+    });
+
+  if (profileError) {
+    console.log("Error profiles:", profileError);
+    Alert.alert("Error", "No se pudo crear el perfil.");
+    setLoading(false);
+    return;
+  }
+
+  // Guardar en usuarios
+  const { error: usuarioError } = await supabase
+    .from("usuarios")
+    .insert({
+      nombre: name,
+      apellidos: lastName,
+      correo: isValidEmail(emailOrPhone) ? emailOrPhone : null,
+    });
+
+  if (usuarioError) {
+    console.log("Error usuarios:", usuarioError);
+    Alert.alert("Error", "No se pudo guardar el usuario.");
+    setLoading(false);
+    return;
+  }
+
+  Alert.alert(
+    "Cuenta creada",
+    "Tu cuenta ha sido creada correctamente."
+  );
+
+  if (data.session) {
+    router.replace("/");
+  }
+} else {
+  Alert.alert(
+    "Registro exitoso",
+    "Revisa tu correo o teléfono para verificar tu cuenta."
+  );
+}
     } catch (e: any) {
       Alert.alert("Error", e?.message ?? String(e));
     } finally {
