@@ -103,7 +103,7 @@ export default function ChatsScreen() {
       {chats.map((chat) => (
         <TouchableOpacity 
           key={chat.id} 
-          onPress={() => router.push(`/(tabs)/chat/${chat.id}`)}  // ← ¡CAMBIO AQUÍ!
+          onPress={() => router.push(`/(tabs)/chat/${chat.id}`)}
           activeOpacity={0.8}
         >
           <View style={styles.chatCard}>
@@ -123,11 +123,11 @@ export default function ChatsScreen() {
                   {chat.last_message}
                 </Text>
 
-                {chat.unread_count > 0 && (
+                {/* {chat.unread_count > 0 && (
                   <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{chat.unread_count}</Text>
+                    <Text style={styles.badgeText}></Text>
                   </View>
-                )}
+                )} */}
               </View>
             </View>
           </View>
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     width: 65,
     height: 65,
     borderRadius: 32.5,
-    backgroundColor: "#1B4079",
+    backgroundColor: "#b9d27b",
     justifyContent: "center",
     alignItems: "center",
     position: "relative",
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#1B4079",
+    color: "#6f7e49",
   },
 
   time: {
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   },
 
   badge: {
-    backgroundColor: "#20C997",
+    backgroundColor: "#b9d27b",
     minWidth: 22,
     height: 22,
     borderRadius: 11,

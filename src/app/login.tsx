@@ -130,7 +130,6 @@ if (userId) {
 console.log("SESSION:", session);
 console.log("USER ID:", userId);
 
-  // Guardar en profiles
   const { error: profileError } = await supabase
     .from("profiles")
     .upsert({

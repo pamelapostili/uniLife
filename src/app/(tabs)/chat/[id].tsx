@@ -45,6 +45,24 @@ export default function ChatScreen() {
 
   const chatId = id as string;
 
+  const fetchMessages = async () => {
+  if (!chatId) return;
+
+  const { data, error } = await supabase
+    .from("messages")
+    .select("*")
+    .eq("chat_id", chatId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Error loading messages:", error);
+  } else {
+    setMessages(data || []);
+  }
+
+  setLoading(false);
+};
+
   // Cargar mensajes
   useEffect(() => {
     const fetchMessages = async () => {
@@ -117,6 +135,8 @@ export default function ChatScreen() {
       })
       .eq("id", chatId);
 
+      await fetchMessages();
+
     setNewMessage("");
     setSending(false);
     setShowEmojis(false);
@@ -153,7 +173,7 @@ export default function ChatScreen() {
       >
         {/* HEADER - Nombre del contacto */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => router.push("/(tabs)/chats")} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{name || other_user || "Chat"}</Text>
@@ -271,9 +291,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F4F7F1",
   },
-  // HEADER
   header: {
-    backgroundColor: "#1B4079",
+    backgroundColor: "#b9d27b",
     padding: 15,
     paddingTop: 15,
     flexDirection: "row",
@@ -331,7 +350,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   myMessageText: {
-    color: "#1B4079",
+    color: "#FFFFFF",
   },
   otherMessageText: {
     color: "#333",

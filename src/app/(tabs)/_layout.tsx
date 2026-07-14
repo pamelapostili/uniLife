@@ -73,11 +73,10 @@ export default function TabsLayout() {
           ),
         }}
       />
-      {/* Chat screen dentro de tabs pero sin icono */}
       <Tabs.Screen
         name="chat/[id]"
         options={{
-          href: null, // Oculta esta pestaña
+          href: null,
           headerShown: false,
         }}
       />
