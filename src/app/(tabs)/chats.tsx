@@ -1,8 +1,8 @@
 ﻿import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { supabase } from "../../../lib/supabase";
-import { useUser } from "../../../lib/user-context";
+import { supabase } from "../../lib/supabase";
+import { useUser } from "../../lib/user-context";
 
 type ChatItem = {
   id: string;
@@ -17,7 +17,7 @@ type ChatItem = {
 const initialChats: ChatItem[] = [
   {
     id: "1",
-    name: "Anita",
+    name: "Luka Pugberto",
     last_message: "¿Ya terminaste la tarea de bases de datos?",
     updated_at: "10:42 AM",
     unread_count: 2,
@@ -26,7 +26,7 @@ const initialChats: ChatItem[] = [
   },
   {
     id: "2",
-    name: "Carlosss",
+    name: "Pamela",
     last_message: "Mañana nos vemos para Programación Web 👨‍💻",
     updated_at: "Ayer",
     unread_count: 0,
@@ -35,7 +35,7 @@ const initialChats: ChatItem[] = [
   },
   {
     id: "3",
-    name: "Maria",
+    name: "Allen",
     last_message: "¿Te unirás al grupo de estudio para cálculo?",
     updated_at: "8:15 PM",
     unread_count: 0,
