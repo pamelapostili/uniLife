@@ -2,7 +2,9 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
+    Alert,
     FlatList,
+    Platform,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -10,6 +12,14 @@ import {
 } from "react-native";
 import { supabase } from "../lib/supabase";
 import { useUser } from "../lib/user-context";
+
+function generarUUID(): string {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 type RequestItem = {
   id: string;
@@ -92,45 +102,78 @@ export default function NotificacionesScreen() {
     };
   }, [user]);
 
+  function showErrorMsg(msg: string) {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.alert(msg);
+    } else {
+      Alert.alert("Error", msg);
+    }
+  }
+
   async function acceptRequest(item: RequestItem) {
     if (!user) return;
     setBusyId(item.id);
 
-    const { data: chat, error: chatError } = await supabase
-      .from("chats")
-      .insert({ updated_at: new Date().toISOString() })
-      .select("id")
-      .single();
+    // El id se genera aquí mismo (en vez de pedirle a Supabase que lo devuelva) porque
+    // la política de SELECT de "chats" exige ya ser participante: leer el id de vuelta
+    // justo después de crearlo fallaría por RLS al no existir todavía esa membresía.
+    const chatId = generarUUID();
 
-    if (chatError || !chat) {
-      console.warn("[chats.insert] ", chatError?.message);
+    // "user_id" y "other_user" son columnas heredadas del modelo viejo (chat por-usuario)
+    // que en esta base real son NOT NULL; se rellenan solo para cumplir la restricción,
+    // aunque ya no se usen para la lógica (la membresía real vive en chat_participants).
+    const { error: chatError } = await supabase
+      .from("chats")
+      .insert({
+        id: chatId,
+        user_id: user.id,
+        other_user: item.sender_name,
+        updated_at: new Date().toISOString(),
+      });
+
+    if (chatError) {
+      showErrorMsg(`No se pudo crear el chat: ${chatError.message}`);
       setBusyId(null);
       return;
     }
 
-    const { error: participantsError } = await supabase.from("chat_participants").insert([
-      { chat_id: chat.id, user_id: user.id },
-      { chat_id: chat.id, user_id: item.sender_id },
-    ]);
+    // Se insertan por separado (mi fila primero) porque la política de chat_participants
+    // que valida al otro usuario depende de que MI fila ya exista; insertarlas juntas en
+    // una sola llamada hace que esa comprobación falle para la segunda fila.
+    const { error: myParticipantError } = await supabase
+      .from("chat_participants")
+      .insert({ chat_id: chatId, user_id: user.id });
 
-    if (participantsError) {
-      console.warn("[chat_participants.insert] ", participantsError.message);
+    if (myParticipantError) {
+      showErrorMsg(`No se pudo unir al chat: ${myParticipantError.message}`);
+      setBusyId(null);
+      return;
+    }
+
+    const { error: otherParticipantError } = await supabase
+      .from("chat_participants")
+      .insert({ chat_id: chatId, user_id: item.sender_id });
+
+    if (otherParticipantError) {
+      showErrorMsg(`No se pudo agregar al otro usuario: ${otherParticipantError.message}`);
       setBusyId(null);
       return;
     }
 
     const { error: updateError } = await supabase
       .from("message_requests")
-      .update({ status: "accepted", chat_id: chat.id, updated_at: new Date().toISOString() })
+      .update({ status: "accepted", chat_id: chatId, updated_at: new Date().toISOString() })
       .eq("id", item.id);
 
     if (updateError) {
-      console.warn("[message_requests.update] ", updateError.message);
+      showErrorMsg(`No se pudo actualizar la solicitud: ${updateError.message}`);
+      setBusyId(null);
+      return;
     }
 
     setItems((prev) => prev.filter((r) => r.id !== item.id));
     setBusyId(null);
-    router.push(`/chat/${chat.id}`);
+    router.push(`/chat/${chatId}`);
   }
 
   async function rejectRequest(item: RequestItem) {

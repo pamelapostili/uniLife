@@ -1,13 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { supabase } from "../lib/supabase";
 import { useUser } from "../lib/user-context";
 
 type ChatItem = {
   id: string;
   name: string;
+  avatarUrl: string;
   last_message: string;
   updated_at: string;
   initials: string;
@@ -54,11 +55,11 @@ export default function ChatsScreen() {
     const otherUserByChat = Object.fromEntries((otherRows ?? []).map((r: any) => [r.chat_id, r.user_id]));
     const otherUserIds = Object.values(otherUserByChat) as string[];
 
-    let profileById: Record<string, { full_name: string | null }> = {};
+    let profileById: Record<string, { full_name: string | null; avatar_url: string | null }> = {};
     if (otherUserIds.length > 0) {
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, full_name")
+        .select("id, full_name, avatar_url")
         .in("id", otherUserIds);
       profileById = Object.fromEntries((profiles ?? []).map((p: any) => [p.id, p]));
     }
@@ -67,9 +68,13 @@ export default function ChatsScreen() {
       .map((chat: any) => {
         const otherId = otherUserByChat[chat.id];
         const name = profileById[otherId]?.full_name ?? "Usuario";
+        const avatarUrl =
+          profileById[otherId]?.avatar_url ||
+          `https://api.dicebear.com/6.x/initials/svg?seed=${encodeURIComponent(name)}`;
         return {
           id: chat.id,
           name,
+          avatarUrl,
           last_message: chat.last_message ?? "Aún no hay mensajes",
           updated_at: chat.updated_at ? new Date(chat.updated_at).toLocaleString() : "",
           initials: name.substring(0, 1).toUpperCase(),
@@ -146,9 +151,7 @@ export default function ChatsScreen() {
           {chats.map((chat) => (
             <TouchableOpacity key={chat.id} onPress={() => router.push(`/chat/${chat.id}`)} activeOpacity={0.8}>
               <View style={styles.chatCard}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{chat.initials}</Text>
-                </View>
+                <Image source={{ uri: chat.avatarUrl }} style={styles.avatar} />
 
                 <View style={styles.chatInfo}>
                   <View style={styles.topRow}>
@@ -256,15 +259,6 @@ const styles = StyleSheet.create({
     height: 65,
     borderRadius: 32.5,
     backgroundColor: "#1B4079",
-    justifyContent: "center",
-    alignItems: "center",
-    position: "relative",
-  },
-
-  avatarText: {
-    color: "#FFFFFF",
-    fontSize: 24,
-    fontWeight: "bold",
   },
 
   chatInfo: {

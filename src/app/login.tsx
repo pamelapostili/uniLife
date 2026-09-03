@@ -49,6 +49,50 @@ export default function LoginScreen() {
     return /^\+?[0-9]{7,15}$/.test(value.replace(/\s+/g, ""));
   }
 
+  const PASSWORDS_COMUNES = [
+    "password",
+    "12345678",
+    "123456789",
+    "qwerty123",
+    "contrasena",
+    "contraseña",
+    "11111111",
+    "00000000",
+    "abcdefgh",
+    "iloveyou",
+    "admin123",
+    "qwertyui",
+    "unilife1",
+  ];
+
+  function tieneSecuencia(value: string) {
+    const lower = value.toLowerCase();
+    for (let i = 0; i <= lower.length - 4; i++) {
+      const slice = lower.slice(i, i + 4);
+      let ascendente = true;
+      let descendente = true;
+      for (let j = 1; j < slice.length; j++) {
+        const diff = slice.charCodeAt(j) - slice.charCodeAt(j - 1);
+        if (diff !== 1) ascendente = false;
+        if (diff !== -1) descendente = false;
+      }
+      if (ascendente || descendente) return true;
+    }
+    return false;
+  }
+
+  function validarContrasena(value: string): string | null {
+    if (value.length < 8) return "Debe tener al menos 8 caracteres.";
+    if (!/[A-Z]/.test(value)) return "Debe incluir al menos una letra mayúscula.";
+    if (!/[a-z]/.test(value)) return "Debe incluir al menos una letra minúscula.";
+    if (!/[0-9]/.test(value)) return "Debe incluir al menos un número.";
+    if (!/[^A-Za-z0-9]/.test(value)) return "Debe incluir al menos un símbolo (por ejemplo: !@#$%).";
+    if (/(.)\1{3,}/.test(value)) return "No repitas el mismo carácter varias veces seguidas.";
+    if (tieneSecuencia(value)) return "No uses secuencias fáciles de adivinar (como 1234 o abcd).";
+    if (PASSWORDS_COMUNES.includes(value.toLowerCase())) return "Esa contraseña es demasiado común, elige otra.";
+    return null;
+  }
+
   // Crea o actualiza la fila del usuario en la tabla "profiles" con datos reales.
   async function ensureProfile(userId: string, fullName?: string) {
     const { error } = await supabase.from("profiles").upsert(
@@ -101,8 +145,9 @@ export default function LoginScreen() {
       return;
     }
 
-    if (password.length < 6) {
-      showError("Contraseña muy corta", "Usa al menos 6 caracteres.");
+    const errorContrasena = validarContrasena(password);
+    if (errorContrasena) {
+      showError("Contraseña insegura", errorContrasena);
       return;
     }
 
@@ -205,6 +250,12 @@ export default function LoginScreen() {
         />
 
         {isSignUp && (
+          <Text style={styles.passwordHint}>
+            Mínimo 8 caracteres, con mayúscula, minúscula, número y símbolo. Evita secuencias fáciles (1234, abcd).
+          </Text>
+        )}
+
+        {isSignUp && (
           <TextInput
             style={styles.input}
             placeholder="Confirmar contraseña"
@@ -274,6 +325,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
+    marginBottom: 12,
+  },
+  passwordHint: {
+    fontSize: 12,
+    color: "#64748b",
+    marginTop: -6,
     marginBottom: 12,
   },
   button: {

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { supabase } from "../../lib/supabase";
 import { useUser } from "../../lib/user-context";
 
@@ -12,7 +12,9 @@ export default function ChatThread() {
   const [messages, setMessages] = useState<any[]>([]);
   const [fetching, setFetching] = useState(true);
   const [text, setText] = useState("");
+  const [otherId, setOtherId] = useState<string | null>(null);
   const [otherName, setOtherName] = useState("Chat");
+  const [otherAvatar, setOtherAvatar] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -34,13 +36,19 @@ export default function ChatThread() {
         .maybeSingle();
 
       if (otherRow?.user_id) {
+        setOtherId(otherRow.user_id);
+
         const { data: profile } = await supabase
           .from("profiles")
-          .select("full_name")
+          .select("full_name, avatar_url")
           .eq("id", otherRow.user_id)
           .maybeSingle();
 
-        setOtherName(profile?.full_name ?? "Usuario");
+        const name = profile?.full_name ?? "Usuario";
+        setOtherName(name);
+        setOtherAvatar(
+          profile?.avatar_url || `https://api.dicebear.com/6.x/initials/svg?seed=${encodeURIComponent(name)}`
+        );
       }
     })();
   }, [chatId, user]);
@@ -111,7 +119,16 @@ export default function ChatThread() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{otherName}</Text>
+
+        <TouchableOpacity
+          style={styles.headerCenter}
+          onPress={() => otherId && router.push(`/usuario/${otherId}`)}
+          disabled={!otherId}
+        >
+          {otherAvatar && <Image source={{ uri: otherAvatar }} style={styles.headerAvatar} />}
+          <Text style={styles.headerTitle}>{otherName}</Text>
+        </TouchableOpacity>
+
         <View style={styles.headerRight} />
       </View>
 
@@ -119,12 +136,18 @@ export default function ChatThread() {
         ref={listRef}
         data={messages}
         keyExtractor={(i) => i.id}
-        renderItem={({ item }) => (
-          <View style={[styles.messageRow, item.sender_id === user?.id ? styles.ownMessage : styles.otherMessage]}>
-            <Text style={styles.messageText}>{item.message}</Text>
-            <Text style={styles.messageTime}>{item.created_at ? new Date(item.created_at).toLocaleTimeString() : ''}</Text>
-          </View>
-        )}
+        renderItem={({ item }) => {
+          const isMine = item.sender_id === user?.id;
+          return (
+            <View style={[styles.messageWrapper, isMine ? styles.ownWrapper : styles.otherWrapper]}>
+              {!isMine && otherAvatar && <Image source={{ uri: otherAvatar }} style={styles.bubbleAvatar} />}
+              <View style={[styles.messageRow, isMine ? styles.ownMessage : styles.otherMessage]}>
+                <Text style={styles.messageText}>{item.message}</Text>
+                <Text style={styles.messageTime}>{item.created_at ? new Date(item.created_at).toLocaleTimeString() : ''}</Text>
+              </View>
+            </View>
+          );
+        }}
       />
 
       <View style={styles.inputRow}>
@@ -150,9 +173,15 @@ const styles = StyleSheet.create({
   },
   backButton: { paddingHorizontal: 5 },
   backText: { color: '#FFFFFF', fontSize: 24 },
-  headerTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', flex: 1, textAlign: 'center' },
+  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  headerAvatar: { width: 32, height: 32, borderRadius: 16, marginRight: 8 },
+  headerTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', textAlign: 'center' },
   headerRight: { width: 30 },
-  messageRow: { margin: 10, padding: 12, borderRadius: 12, maxWidth: '80%' },
+  messageWrapper: { flexDirection: 'row', alignItems: 'flex-end', marginHorizontal: 10, marginTop: 8 },
+  ownWrapper: { justifyContent: 'flex-end' },
+  otherWrapper: { justifyContent: 'flex-start' },
+  bubbleAvatar: { width: 26, height: 26, borderRadius: 13, marginRight: 6 },
+  messageRow: { padding: 12, borderRadius: 12, maxWidth: '80%' },
   ownMessage: { alignSelf: 'flex-end', backgroundColor: '#6f7e49' },
   otherMessage: { alignSelf: 'flex-start', backgroundColor: '#e5e7eb' },
   messageText: { color: '#fff' },
