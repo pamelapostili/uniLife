@@ -1,6 +1,41 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
+import { Tabs, usePathname, useRouter } from "expo-router";
+import { useEffect } from "react";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { UserProvider, useUser } from "../lib/user-context";
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useUser();
+  const router = useRouter();
+  const pathname = usePathname();
+  const onLoginScreen = pathname === "/login";
+  const onAuthCallback = pathname === "/auth/callback";
+
+  useEffect(() => {
+    if (loading || onAuthCallback) return;
+    if (!user && !onLoginScreen) {
+      router.replace("/login");
+    } else if (user && onLoginScreen) {
+      router.replace("/");
+    }
+  }, [user, loading, onLoginScreen, onAuthCallback]);
+
+  // Mientras se resuelve la sesión, o justo antes de redirigir, no mostramos
+  // contenido para evitar el parpadeo de pantallas protegidas sin sesión.
+  // /auth/callback se deja pasar siempre: esa pantalla procesa el token del
+  // login social y se redirige a sí misma cuando termina.
+  const shouldBlock = !onAuthCallback && (loading || (!user && !onLoginScreen) || (user && onLoginScreen));
+
+  if (shouldBlock) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" color="#6f7e49" />
+      </View>
+    );
+  }
+
+  return <>{children}</>;
+}
 
 function AppTabs() {
   const { user } = useUser();
@@ -99,6 +134,13 @@ function AppTabs() {
       />
 
       <Tabs.Screen
+        name="auth/callback"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
         name="perfil"
         options={{
           title: "Perfil",
@@ -125,7 +167,18 @@ function AppTabs() {
 export default function TabLayout() {
   return (
     <UserProvider>
-      <AppTabs />
+      <AuthGate>
+        <AppTabs />
+      </AuthGate>
     </UserProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loaderContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f7f8fa",
+  },
+});

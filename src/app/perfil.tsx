@@ -17,6 +17,7 @@ import {
     View,
 } from "react-native";
 import { CATEGORIAS } from "../lib/categorias";
+import { INTERESES } from "../lib/intereses";
 import { supabase } from "../lib/supabase";
 import { useUser } from "../lib/user-context";
 
@@ -29,7 +30,7 @@ export default function PerfilScreen() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [nombre, setNombre] = useState("");
   const [bio, setBio] = useState("");
-  const [interesesTexto, setInteresesTexto] = useState("");
+  const [interesesSeleccionados, setInteresesSeleccionados] = useState<string[]>([]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -40,8 +41,14 @@ export default function PerfilScreen() {
   function openEdit() {
     setNombre(profile?.full_name ?? "");
     setBio(profile?.bio ?? "");
-    setInteresesTexto((profile?.interests ?? []).join(", "));
+    setInteresesSeleccionados(profile?.interests ?? []);
     setEditVisible(true);
+  }
+
+  function toggleInteres(interes: string) {
+    setInteresesSeleccionados((prev) =>
+      prev.includes(interes) ? prev.filter((i) => i !== interes) : [...prev, interes]
+    );
   }
 
   function showErrorMsg(msg: string) {
@@ -56,10 +63,13 @@ export default function PerfilScreen() {
     if (!user) return;
 
     setSavingProfile(true);
-    const interests = interesesTexto
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
+    // Conservamos la membresía a grupos (CATEGORIAS), que se maneja aparte
+    // desde /grupo/[categoria], para no expulsar al usuario de sus grupos
+    // solo por editar sus intereses personales aquí.
+    const gruposActuales = (profile?.interests ?? []).filter((i) =>
+      CATEGORIAS.some((c) => c.titulo === i)
+    );
+    const interests = Array.from(new Set([...interesesSeleccionados, ...gruposActuales]));
 
     const { error } = await supabase
       .from("profiles")
@@ -243,12 +253,23 @@ export default function PerfilScreen() {
               style={styles.modalDescription}
             />
 
-            <TextInput
-              placeholder="Intereses (separados por coma)"
-              value={interesesTexto}
-              onChangeText={setInteresesTexto}
-              style={styles.modalInput}
-            />
+            <Text style={styles.interesesLabel}>Intereses</Text>
+            <View style={styles.interesesGrid}>
+              {INTERESES.map((interes) => {
+                const activo = interesesSeleccionados.includes(interes);
+                return (
+                  <TouchableOpacity
+                    key={interes}
+                    onPress={() => toggleInteres(interes)}
+                    style={[styles.interesChip, activo && styles.interesChipActivo]}
+                  >
+                    <Text style={[styles.interesChipTexto, activo && styles.interesChipTextoActivo]}>
+                      {interes}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.cancelarBtn} onPress={() => setEditVisible(false)}>
@@ -465,6 +486,38 @@ const styles = StyleSheet.create({
     height: 80,
     textAlignVertical: "top",
     marginBottom: 12,
+  },
+  interesesLabel: {
+    fontWeight: "600",
+    color: "#475569",
+    marginBottom: 8,
+  },
+  interesesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 12,
+  },
+  interesChip: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginRight: 8,
+    marginBottom: 8,
+    backgroundColor: "#F8FAFC",
+  },
+  interesChipActivo: {
+    backgroundColor: "#6f7e49",
+    borderColor: "#6f7e49",
+  },
+  interesChipTexto: {
+    color: "#64748b",
+    fontWeight: "600",
+    fontSize: 13,
+  },
+  interesChipTextoActivo: {
+    color: "#fff",
   },
   modalButtons: {
     flexDirection: "row",

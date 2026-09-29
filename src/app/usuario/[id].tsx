@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { follow, isFollowing, unfollow } from "../../lib/follows";
 import { fetchRequestInfo, RequestInfo, sendMessageRequest } from "../../lib/messageRequests";
 import { supabase } from "../../lib/supabase";
 import { useUser } from "../../lib/user-context";
@@ -23,6 +24,8 @@ export default function PerfilPublicoScreen() {
   const [profile, setProfile] = useState<PublicProfile | null | undefined>(undefined);
   const [requestInfo, setRequestInfo] = useState<RequestInfo>({});
   const [sending, setSending] = useState(false);
+  const [siguiendo, setSiguiendo] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -47,9 +50,20 @@ export default function PerfilPublicoScreen() {
 
       if (data) {
         setRequestInfo(await fetchRequestInfo(user.id, otherId));
+        setSiguiendo(await isFollowing(user.id, otherId));
       }
     })();
   }, [user, otherId]);
+
+  async function handleToggleFollow() {
+    if (!user) return;
+    setFollowBusy(true);
+    const { error } = siguiendo ? await unfollow(user.id, otherId) : await follow(user.id, otherId);
+    if (!error) {
+      setSiguiendo((prev) => !prev);
+    }
+    setFollowBusy(false);
+  }
 
   async function handleSendRequest() {
     if (!user) return;
@@ -140,7 +154,30 @@ export default function PerfilPublicoScreen() {
         <Text style={styles.name}>{profile.full_name ?? "Usuario"}</Text>
         <Text style={styles.bio}>{profile.bio ?? "Aún no ha completado su biografía."}</Text>
 
-        {renderAction()}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={[styles.actionButton, siguiendo ? styles.followingButton : styles.followButton]}
+            onPress={handleToggleFollow}
+            disabled={followBusy}
+          >
+            {followBusy ? (
+              <ActivityIndicator size="small" color={siguiendo ? "#334155" : "#fff"} />
+            ) : (
+              <>
+                <Ionicons
+                  name={siguiendo ? "person-remove-outline" : "person-add-outline"}
+                  size={16}
+                  color={siguiendo ? "#334155" : "#fff"}
+                />
+                <Text style={[styles.actionText, siguiendo && styles.followingText]}>
+                  {siguiendo ? "Siguiendo" : "Seguir"}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          {renderAction()}
+        </View>
       </View>
 
       <View style={styles.sectionCard}>
@@ -182,6 +219,10 @@ const styles = StyleSheet.create({
   avatar: { width: 100, height: 100, borderRadius: 50, marginBottom: 12 },
   name: { fontSize: 22, fontWeight: "700", color: "#111827" },
   bio: { color: "#475569", marginTop: 8, textAlign: "center", lineHeight: 20, marginBottom: 16 },
+  actionsRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10 },
+  followButton: { backgroundColor: "#334155" },
+  followingButton: { backgroundColor: "#e5e7eb" },
+  followingText: { color: "#334155" },
   actionButton: {
     flexDirection: "row",
     alignItems: "center",

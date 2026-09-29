@@ -7,6 +7,7 @@ import {
   Image,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,6 +15,8 @@ import {
   View
 } from "react-native";
 
+import { fetchRequestInfoBulk, RequestInfo, sendMessageRequest } from "../lib/messageRequests";
+import { INTERESES } from "../lib/intereses";
 import { supabase } from "../lib/supabase";
 import { useUser } from "../lib/user-context";
 
@@ -33,6 +36,10 @@ export default function ForosScreen() {
   const [fetching, setFetching] = useState(true);
   const [busqueda, setBusqueda] = useState("");
   const [categoria, setCategoria] = useState("Todos");
+  const [interesesFiltro, setInteresesFiltro] = useState<string[]>([]);
+  const [authorInterests, setAuthorInterests] = useState<Record<string, string[]>>({});
+  const [requestInfoMap, setRequestInfoMap] = useState<Record<string, RequestInfo>>({});
+  const [mensajeBusy, setMensajeBusy] = useState<string | null>(null);
 
 const [foros, setForos] = useState<any[]>([]);
 
@@ -84,7 +91,73 @@ if (!loading && !user) {
 
   setForos(data ?? []);
   setFetching(false);
+
+  const authorIds = Array.from(
+    new Set((data ?? []).map((f: any) => f.user_id).filter((id: any) => !!id))
+  ) as string[];
+
+  if (user && authorIds.length > 0) {
+    const [{ data: perfiles }, reqMap] = await Promise.all([
+      supabase.from("profiles").select("id, interests").in("id", authorIds),
+      fetchRequestInfoBulk(user.id, authorIds),
+    ]);
+
+    const interestsMap: Record<string, string[]> = {};
+    (perfiles ?? []).forEach((p: any) => {
+      interestsMap[p.id] = p.interests ?? [];
+    });
+    setAuthorInterests(interestsMap);
+    setRequestInfoMap(reqMap);
+  } else {
+    setAuthorInterests({});
+    setRequestInfoMap({});
+  }
 };
+
+function toggleInteresFiltro(interes: string) {
+  setInteresesFiltro((prev) =>
+    prev.includes(interes) ? prev.filter((i) => i !== interes) : [...prev, interes]
+  );
+}
+
+async function handleMensajeAutor(authorId: string) {
+  if (!user) return;
+  const info = requestInfoMap[authorId] ?? {};
+
+  const accepted = info.mine?.status === "accepted" || info.theirs?.status === "accepted";
+  if (accepted) {
+    const chatId = info.mine?.chat_id ?? info.theirs?.chat_id;
+    if (chatId) router.push(`/chat/${chatId}`);
+    return;
+  }
+
+  if (info.theirs?.status === "pending") {
+    router.push("/notificaciones");
+    return;
+  }
+
+  if (info.mine?.status === "pending") {
+    return;
+  }
+
+  setMensajeBusy(authorId);
+  const { error } = await sendMessageRequest(user.id, authorId);
+  if (!error) {
+    setRequestInfoMap((prev) => ({
+      ...prev,
+      [authorId]: { ...prev[authorId], mine: { status: "pending", chat_id: null } },
+    }));
+  }
+  setMensajeBusy(null);
+}
+
+function mensajeAutorLabel(authorId: string) {
+  const info = requestInfoMap[authorId] ?? {};
+  if (info.mine?.status === "accepted" || info.theirs?.status === "accepted") return "Chatear";
+  if (info.theirs?.status === "pending") return "Responder";
+  if (info.mine?.status === "pending") return "Enviado";
+  return "Mensaje";
+}
 
 const editarForo = (foro: any) => {
   setModoEdicion(true);
@@ -264,6 +337,7 @@ const crearForo = async () => {
 
   const nuevoForo = {
     autor: user.email,
+    user_id: user.id,
     titulo: titulo.trim(),
     descripcion: descripcion.trim(),
     categoria: categoriaNueva,
@@ -306,13 +380,21 @@ const crearForo = async () => {
     const coincideCategoria =
       categoria === "Todos" || foro.categoria === categoria;
 
-    return coincideTexto && coincideCategoria;
+    const interesesAutor = foro.user_id ? authorInterests[foro.user_id] ?? [] : [];
+    const coincideIntereses =
+      interesesFiltro.length === 0 || interesesAutor.some((i) => interesesFiltro.includes(i));
+
+    return coincideTexto && coincideCategoria && coincideIntereses;
   });
 
   const renderPost = ({ item }: any) => (
     <View style={styles.postCard}>
       <View style={styles.headerPost}>
-        <View style={styles.userInfo}>
+        <TouchableOpacity
+          style={styles.userInfo}
+          disabled={!item.user_id}
+          onPress={() => item.user_id && router.push(`/usuario/${item.user_id}`)}
+        >
 <Image
   source={{
     uri:
@@ -346,7 +428,7 @@ const crearForo = async () => {
               </Text>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.actions}>
           <TouchableOpacity onPress={() => editarForo(item)}>
@@ -402,6 +484,23 @@ const crearForo = async () => {
             {item.likes}
           </Text>
         </TouchableOpacity>
+
+        {item.user_id && item.user_id !== user?.id && (
+          <TouchableOpacity
+            style={styles.footerItem}
+            onPress={() => handleMensajeAutor(item.user_id)}
+            disabled={mensajeBusy === item.user_id}
+          >
+            {mensajeBusy === item.user_id ? (
+              <ActivityIndicator size="small" color="#64748b" />
+            ) : (
+              <>
+                <Ionicons name="paper-plane-outline" size={18} color="#64748b" />
+                <Text style={styles.footerText}>{mensajeAutorLabel(item.user_id)}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -463,6 +562,24 @@ const crearForo = async () => {
           </TouchableOpacity>
         ))}
       </View>
+
+      <Text style={styles.filtroInteresesLabel}>Filtrar por intereses del autor</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.interesesFiltroRow}>
+        {INTERESES.map((interes) => {
+          const activo = interesesFiltro.includes(interes);
+          return (
+            <TouchableOpacity
+              key={interes}
+              onPress={() => toggleInteresFiltro(interes)}
+              style={[styles.categoriaBtn, activo && styles.categoriaActiva]}
+            >
+              <Text style={[styles.categoriaTexto, activo && styles.categoriaTextoActiva]}>
+                {interes}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
 {fetching ? (
   <View style={styles.loadingContainer}>
@@ -750,6 +867,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginRight: 8,
     backgroundColor: "white",
+  },
+
+  filtroInteresesLabel: {
+    color: "#64748b",
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+
+  interesesFiltroRow: {
+    marginBottom: 15,
   },
 
   modalOverlay: {

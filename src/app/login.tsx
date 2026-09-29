@@ -2,16 +2,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import { signInWithProvider, type OAuthProvider } from "../lib/oauth";
 import { supabase } from "../lib/supabase";
 import { useUser } from "../lib/user-context";
 
@@ -24,6 +25,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
+  const [oauthLoading, setOauthLoading] = useState<OAuthProvider | null>(null);
 
   function showError(title: string, message?: string) {
     const msg = message ?? "";
@@ -202,6 +204,19 @@ export default function LoginScreen() {
     }
   }
 
+  async function handleOAuthPress(provider: OAuthProvider) {
+    setOauthLoading(provider);
+    try {
+      await signInWithProvider(provider);
+      // La sesión (si el usuario completó el login) llega vía onAuthStateChange
+      // en user-context.tsx, que a su vez dispara el useEffect de redirección arriba.
+    } catch (err: any) {
+      showError("No se pudo iniciar sesión", err?.message);
+    } finally {
+      setOauthLoading(null);
+    }
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -282,6 +297,44 @@ export default function LoginScreen() {
             {isSignUp ? "¿Ya tienes cuenta? Iniciar sesión" : "¿No tienes cuenta? Crear cuenta"}
           </Text>
         </TouchableOpacity>
+
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>o continúa con</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        <TouchableOpacity
+          style={styles.socialButton}
+          onPress={() => handleOAuthPress("google")}
+          disabled={oauthLoading !== null}
+        >
+          {oauthLoading === "google" ? (
+            <ActivityIndicator color="#374151" />
+          ) : (
+            <>
+              <Ionicons name="logo-google" size={20} color="#374151" style={styles.socialIcon} />
+              <Text style={styles.socialButtonText}>Continuar con Google</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        {Platform.OS === "ios" && (
+          <TouchableOpacity
+            style={[styles.socialButton, styles.appleButton]}
+            onPress={() => handleOAuthPress("apple")}
+            disabled={oauthLoading !== null}
+          >
+            {oauthLoading === "apple" ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="logo-apple" size={20} color="#fff" style={styles.socialIcon} />
+                <Text style={[styles.socialButtonText, styles.appleButtonText]}>Continuar con Apple</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -349,5 +402,46 @@ const styles = StyleSheet.create({
     color: "#64748b",
     marginTop: 12,
     fontSize: 12,
+  },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 20,
+    marginBottom: 14,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#e5e7eb",
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: "#94a3b8",
+    fontSize: 12,
+  },
+  socialButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 12,
+    paddingVertical: 12,
+    marginBottom: 10,
+    backgroundColor: "#fff",
+  },
+  socialIcon: {
+    marginRight: 10,
+  },
+  socialButtonText: {
+    color: "#374151",
+    fontWeight: "600",
+  },
+  appleButton: {
+    backgroundColor: "#000",
+    borderColor: "#000",
+  },
+  appleButtonText: {
+    color: "#fff",
   },
 });

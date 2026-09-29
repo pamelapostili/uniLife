@@ -1,0 +1,18 @@
+export const INTERESES: string[] = [
+  "Música",
+  "Deportes",
+  "Tecnología",
+  "Arte",
+  "Lectura",
+  "Viajes",
+  "Gaming",
+  "Cocina",
+  "Cine",
+  "Fotografía",
+  "Voluntariado",
+  "Emprendimiento",
+  "Fitness",
+  "Moda",
+  "Ciencia",
+  "Idiomas",
+];
