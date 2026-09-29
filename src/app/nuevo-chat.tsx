@@ -189,6 +189,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#F4F7F1",
     paddingHorizontal: 18,
     paddingTop: 20,
+    width: "100%",
+    maxWidth: 720,
+    alignSelf: "center",
   },
   title: {
     fontSize: 26,

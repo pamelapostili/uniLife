@@ -138,10 +138,6 @@ export default function PerfilPublicoScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={22} color="#1B4079" />
-      </TouchableOpacity>
-
       <View style={styles.headerCard}>
         <Image
           source={{
@@ -200,7 +196,7 @@ export default function PerfilPublicoScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f7f8fa" },
-  content: { padding: 16, paddingBottom: 32 },
+  content: { padding: 16, paddingBottom: 32, width: "100%", maxWidth: 720, alignSelf: "center" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   notFoundText: { color: "#64748b", fontSize: 16 },
   backButton: { marginBottom: 12 },

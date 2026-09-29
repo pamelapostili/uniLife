@@ -807,6 +807,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F7F8FA",
     padding: 15,
+    width: "100%",
+    maxWidth: 720,
+    alignSelf: "center",
   },
 
   topBar: {

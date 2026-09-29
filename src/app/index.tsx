@@ -144,7 +144,7 @@ export default function Inicio() {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.centerWrap}>
       <Text style={styles.title}>
         Hola {profile?.full_name ?? user.email?.split("@")[0] ?? ""}, ¿qué deseas hacer hoy?
       </Text>
@@ -301,6 +301,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#eef5f3",
+  },
+
+  centerWrap: {
+    width: "100%",
+    maxWidth: 720,
+    alignSelf: "center",
     padding: 20,
   },
 
@@ -308,7 +314,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "600",
     textAlign: "center",
-    marginTop: 40,
+    marginTop: 10,
     marginBottom: 20,
   },
 

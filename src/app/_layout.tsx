@@ -2,7 +2,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs, usePathname, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
+import Header from "../components/Header";
 import { UserProvider, useUser } from "../lib/user-context";
+
+// Rutas que se navegan "hacia adentro" (no son raíz de un tab) y por lo
+// tanto muestran flecha de regreso en el encabezado global en vez del logo.
+const BACK_ROUTES = new Set(["usuario/[id]", "nuevo-chat"]);
+// Rutas que ya traen su propio encabezado a medida (banner de grupo, barra
+// de chat con avatar): se les apaga el encabezado global para no duplicarlo.
+const OWN_HEADER_ROUTES = new Set(["chat/[id]", "grupo/[categoria]"]);
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, loading } = useUser();
@@ -42,10 +50,11 @@ function AppTabs() {
 
   return (
     <Tabs
-      screenOptions={{
-        headerShown: false,
+      screenOptions={({ route }) => ({
+        headerShown: !OWN_HEADER_ROUTES.has(route.name),
+        header: () => <Header back={BACK_ROUTES.has(route.name)} />,
         tabBarActiveTintColor: "#6f7e49",
-      }}
+      })}
     >
       <Tabs.Screen
         name="index"
@@ -137,6 +146,7 @@ function AppTabs() {
         name="auth/callback"
         options={{
           href: null,
+          headerShown: false,
         }}
       />
 
@@ -155,6 +165,7 @@ function AppTabs() {
         options={{
           title: "Iniciar sesión",
           href: user ? null : "/login",
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="log-in-outline" size={size} color={color} />
           ),
