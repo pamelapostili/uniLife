@@ -3,7 +3,6 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AppAlert, { type AppAlertType } from "../components/AppAlert";
 import { signInWithProvider, type OAuthProvider } from "../lib/oauth";
 import { supabase } from "../lib/supabase";
 import { useUser } from "../lib/user-context";
@@ -24,17 +24,11 @@ export default function LoginScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-  const [infoMessage, setInfoMessage] = useState<string | null>(null);
+  const [alertInfo, setAlertInfo] = useState<{ title: string; message?: string; type: AppAlertType } | null>(null);
   const [oauthLoading, setOauthLoading] = useState<OAuthProvider | null>(null);
 
-  function showError(title: string, message?: string) {
-    const msg = message ?? "";
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      window.alert(`${title}\n${msg}`);
-    } else {
-      Alert.alert(title, msg);
-    }
-    setInfoMessage(`${title}: ${msg}`);
+  function showError(title: string, message?: string, type: AppAlertType = "error") {
+    setAlertInfo({ title, message, type });
   }
 
   useEffect(() => {
@@ -188,18 +182,38 @@ export default function LoginScreen() {
     }
 
     if (data?.user && !data.session) {
+      // Supabase no distingue "cuenta nueva pendiente de confirmar" de "la
+      // cuenta ya existe y está confirmada" con un error explícito (por
+      // diseño, para no revelar qué correos están registrados). La única
+      // pista es que "identities" viene vacío cuando el correo/teléfono ya
+      // tenía una cuenta confirmada.
+      const yaExistia = (data.user.identities?.length ?? 0) === 0;
+
+      setIsSignUp(false);
+      setPassword("");
+      setConfirmPassword("");
+
+      if (yaExistia) {
+        showError(
+          "Esa cuenta ya existe",
+          isEmail
+            ? "Ya hay una cuenta registrada con ese correo. Inicia sesión en su lugar."
+            : "Ya hay una cuenta registrada con ese teléfono. Inicia sesión en su lugar.",
+          "info"
+        );
+        return;
+      }
+
       // Requiere confirmación por correo/SMS antes de poder iniciar sesión.
       // No se puede crear el perfil todavía: sin sesión activa, Supabase (RLS)
       // rechaza la escritura. El perfil se crea en el primer login real
       // (ver fetchProfile en user-context.tsx).
-      setIsSignUp(false);
-      setPassword("");
-      setConfirmPassword("");
       showError(
         "Confirma tu cuenta",
         isEmail
           ? "Revisa tu correo y confirma tu cuenta antes de iniciar sesión."
-          : "Revisa tu teléfono y confirma tu cuenta antes de iniciar sesión."
+          : "Revisa tu teléfono y confirma tu cuenta antes de iniciar sesión.",
+        "info"
       );
     }
   }
@@ -231,12 +245,6 @@ export default function LoginScreen() {
         <Text style={styles.subtitle}>
           {isSignUp ? "Regístrate y conecta con la comunidad" : "Accede a UniLife con tu cuenta de Supabase"}
         </Text>
-
-        {infoMessage ? (
-          <View style={{ padding: 8, backgroundColor: "#fff3bf", borderRadius: 8, marginBottom: 10 }}>
-            <Text style={{ color: "#856404" }}>{infoMessage}</Text>
-          </View>
-        ) : null}
 
         {isSignUp && (
           <TextInput
@@ -336,6 +344,14 @@ export default function LoginScreen() {
           </TouchableOpacity>
         )}
       </View>
+
+      <AppAlert
+        visible={alertInfo !== null}
+        type={alertInfo?.type}
+        title={alertInfo?.title ?? ""}
+        message={alertInfo?.message}
+        onClose={() => setAlertInfo(null)}
+      />
     </KeyboardAvoidingView>
   );
 }
