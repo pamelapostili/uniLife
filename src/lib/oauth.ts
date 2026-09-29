@@ -13,11 +13,17 @@ export type OAuthProvider = "google" | "apple";
  * En nativo, abre un navegador in-app y captura el token del deep link de regreso.
  */
 export async function signInWithProvider(provider: OAuthProvider) {
+  // Fuerza que Google siempre muestre el selector de cuentas, en vez de
+  // reutilizar en silencio la sesión de Google que ya esté activa en el
+  // navegador/dispositivo (que puede no ser la cuenta que el usuario quiere).
+  const queryParams = provider === "google" ? { prompt: "select_account" } : undefined;
+
   if (Platform.OS === "web") {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
         redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined,
+        queryParams,
       },
     });
     if (error) throw error;
@@ -31,6 +37,7 @@ export async function signInWithProvider(provider: OAuthProvider) {
     options: {
       redirectTo,
       skipBrowserRedirect: true,
+      queryParams,
     },
   });
 

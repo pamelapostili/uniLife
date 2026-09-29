@@ -4,4 +4,3 @@ alter table public.foros
 
 CREATE INDEX IF NOT EXISTS idx_foros_user_id ON public.foros (user_id);
 
--- End of script
