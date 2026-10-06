@@ -4,10 +4,8 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
-    Alert,
     Image,
     Modal,
-    Platform,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -16,8 +14,10 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import AppAlert, { type AppAlertType } from "../components/AppAlert";
 import { CATEGORIAS } from "../lib/categorias";
 import { INTERESES } from "../lib/intereses";
+import { validarContrasena } from "../lib/password";
 import { supabase } from "../lib/supabase";
 import { useUser } from "../lib/user-context";
 
@@ -31,6 +31,17 @@ export default function PerfilScreen() {
   const [nombre, setNombre] = useState("");
   const [bio, setBio] = useState("");
   const [interesesSeleccionados, setInteresesSeleccionados] = useState<string[]>([]);
+
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [alertInfo, setAlertInfo] = useState<{ title: string; message?: string; type: AppAlertType } | null>(null);
+
+  function showAlert(title: string, message?: string, type: AppAlertType = "error") {
+    setAlertInfo({ title, message, type });
+  }
 
   useEffect(() => {
     if (!loading && !user) {
@@ -52,11 +63,39 @@ export default function PerfilScreen() {
   }
 
   function showErrorMsg(msg: string) {
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      window.alert(msg);
-    } else {
-      Alert.alert("Error", msg);
+    showAlert("No se pudo completar", msg, "error");
+  }
+
+  async function cambiarContrasena() {
+    if (!newPassword || !confirmNewPassword) {
+      showAlert("Completa los campos", "Ingresa y confirma tu nueva contraseña.");
+      return;
     }
+
+    if (newPassword !== confirmNewPassword) {
+      showAlert("Contraseñas no coinciden", "Verifica que ambas contraseñas sean iguales.");
+      return;
+    }
+
+    const errorContrasena = validarContrasena(newPassword);
+    if (errorContrasena) {
+      showAlert("Contraseña insegura", errorContrasena);
+      return;
+    }
+
+    setChangingPassword(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setChangingPassword(false);
+
+    if (error) {
+      showAlert("No se pudo cambiar la contraseña", error.message);
+      return;
+    }
+
+    setPasswordVisible(false);
+    setNewPassword("");
+    setConfirmNewPassword("");
+    showAlert("Contraseña actualizada", "Tu contraseña se cambió correctamente.", "success");
   }
 
   async function guardarPerfil() {
@@ -160,6 +199,10 @@ export default function PerfilScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.headerCard}>
+        <TouchableOpacity style={styles.menuButton} onPress={() => setMenuVisible(true)} hitSlop={10}>
+          <Ionicons name="ellipsis-vertical" size={22} color="#334155" />
+        </TouchableOpacity>
+
         <TouchableOpacity onPress={cambiarFoto} disabled={uploadingPhoto} style={styles.avatarWrap}>
           <Image
             source={{
@@ -182,6 +225,7 @@ export default function PerfilScreen() {
 
         <View style={styles.headerInfo}>
           <Text style={styles.name}>{profile?.full_name ?? user.email?.split("@")[0]}</Text>
+          <Text style={styles.emailText}>{user.email}</Text>
           <Text style={styles.bio}>
             {profile?.bio ?? "Actualiza tu biografía para que otros te conozcan mejor."}
           </Text>
@@ -189,11 +233,6 @@ export default function PerfilScreen() {
           <TouchableOpacity style={styles.button} onPress={openEdit}>
             <Ionicons name="create-outline" size={18} color="#fff" />
             <Text style={styles.buttonText}>Editar perfil</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.button, styles.buttonSecondary]} onPress={signOut}>
-            <Ionicons name="log-out-outline" size={18} color="#fff" />
-            <Text style={styles.buttonText}>Cerrar sesión</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -290,6 +329,107 @@ export default function PerfilScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <Modal visible={menuVisible} animationType="fade" transparent onRequestClose={() => setMenuVisible(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setMenuVisible(false)}>
+          <Pressable style={styles.menuContainer} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.menuTitle}>Configuración</Text>
+
+            <View style={styles.menuEmailRow}>
+              <Ionicons name="mail-outline" size={18} color="#64748b" />
+              <Text style={styles.menuEmailText}>{user.email}</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuVisible(false);
+                openEdit();
+              }}
+            >
+              <Ionicons name="create-outline" size={20} color="#334155" />
+              <Text style={styles.menuItemText}>Editar perfil</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuVisible(false);
+                setNewPassword("");
+                setConfirmNewPassword("");
+                setPasswordVisible(true);
+              }}
+            >
+              <Ionicons name="lock-closed-outline" size={20} color="#334155" />
+              <Text style={styles.menuItemText}>Cambiar contraseña</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.menuItem, styles.menuItemDanger]}
+              onPress={() => {
+                setMenuVisible(false);
+                signOut();
+              }}
+            >
+              <Ionicons name="log-out-outline" size={20} color="#EF3340" />
+              <Text style={[styles.menuItemText, styles.menuItemTextDanger]}>Cerrar sesión</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={passwordVisible} animationType="fade" transparent onRequestClose={() => setPasswordVisible(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setPasswordVisible(false)}>
+          <Pressable style={styles.modalContainer} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>Cambiar contraseña</Text>
+
+            <TextInput
+              placeholder="Nueva contraseña"
+              value={newPassword}
+              onChangeText={setNewPassword}
+              secureTextEntry
+              style={styles.modalInput}
+            />
+
+            <TextInput
+              placeholder="Confirmar nueva contraseña"
+              value={confirmNewPassword}
+              onChangeText={setConfirmNewPassword}
+              secureTextEntry
+              style={styles.modalInput}
+            />
+
+            <Text style={styles.passwordHint}>
+              Mínimo 8 caracteres, con mayúscula, minúscula, número y símbolo.
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.cancelarBtn} onPress={() => setPasswordVisible(false)}>
+                <Text style={styles.cancelarTexto}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.guardarBtn} onPress={cambiarContrasena} disabled={changingPassword}>
+                {changingPassword ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark" size={18} color="white" />
+                    <Text style={styles.guardarTexto}>Guardar</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <AppAlert
+        visible={alertInfo !== null}
+        type={alertInfo?.type}
+        title={alertInfo?.title ?? ""}
+        message={alertInfo?.message}
+        onClose={() => setAlertInfo(null)}
+      />
     </ScrollView>
   );
 }
@@ -316,11 +456,24 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     marginBottom: 16,
+    position: "relative",
     shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
+  },
+  menuButton: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    zIndex: 1,
+    padding: 6,
+  },
+  emailText: {
+    color: "#64748b",
+    fontSize: 13,
+    marginTop: 2,
   },
   avatarWrap: {
     alignSelf: "center",
@@ -554,5 +707,62 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "700",
     marginLeft: 5,
+  },
+  passwordHint: {
+    fontSize: 12,
+    color: "#64748b",
+    marginBottom: 12,
+  },
+  menuContainer: {
+    width: "85%",
+    maxWidth: 340,
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+  },
+  menuTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#334155",
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  menuEmailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingBottom: 10,
+    marginBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  menuEmailText: {
+    marginLeft: 8,
+    color: "#64748b",
+    fontSize: 13,
+    flexShrink: 1,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 13,
+    borderRadius: 10,
+  },
+  menuItemText: {
+    marginLeft: 12,
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#334155",
+  },
+  menuItemDanger: {
+    marginTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+  },
+  menuItemTextDanger: {
+    color: "#EF3340",
   },
 });
