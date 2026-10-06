@@ -238,7 +238,7 @@ export default function LoginScreen() {
     >
       <View style={styles.card}>
         <View style={styles.iconWrap}>
-          <Ionicons name="person-circle-outline" size={56} color="#6f7e49" />
+          <Ionicons name="person-circle-outline" size={56} color="#324F40" />
         </View>
 
         <Text style={styles.title}>{isSignUp ? "Crear cuenta" : "Inicia sesión"}</Text>
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
-    backgroundColor: "#f7f8fa",
+    backgroundColor: "#F4F5F0",
     padding: 20,
   },
   card: {
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   button: {
-    backgroundColor: "#6f7e49",
+    backgroundColor: "#324F40",
     borderRadius: 12,
     paddingVertical: 13,
     alignItems: "center",

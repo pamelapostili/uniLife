@@ -138,7 +138,7 @@ export default function Inicio() {
   if (loading || !user) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6f7e49" />
+        <ActivityIndicator size="large" color="#324F40" />
       </View>
     );
   }
@@ -160,7 +160,7 @@ export default function Inicio() {
             >
               {unido && (
                 <View style={styles.checkBadge}>
-                  <Ionicons name="checkmark-circle" size={18} color="#6f7e49" />
+                  <Ionicons name="checkmark-circle" size={18} color="#324F40" />
                 </View>
               )}
 
@@ -191,7 +191,7 @@ export default function Inicio() {
 
       {fetching ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6f7e49" />
+          <ActivityIndicator size="large" color="#324F40" />
         </View>
       ) : recommended.length === 0 ? (
         <Text style={styles.emptyText}>Aún no hay más personas para sugerirte.</Text>
@@ -222,7 +222,7 @@ export default function Inicio() {
                     </Text>
                     {person.sharedCount > 0 && (
                       <View style={styles.sharedBadge}>
-                        <Ionicons name="sparkles" size={12} color="#6f7e49" />
+                        <Ionicons name="sparkles" size={12} color="#324F40" />
                         <Text style={styles.sharedBadgeText}>
                           {person.sharedCount} en común
                         </Text>
@@ -300,7 +300,7 @@ export default function Inicio() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#eef5f3",
+    backgroundColor: "#F4F5F0",
   },
 
   centerWrap: {
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
 
   cardActive: {
     borderWidth: 2,
-    borderColor: "#6f7e49",
+    borderColor: "#324F40",
   },
 
   checkBadge: {
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
   },
 
   sharedBadgeText: {
-    color: "#6f7e49",
+    color: "#324F40",
     fontWeight: "700",
     fontSize: 12,
     marginLeft: 4,
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
   },
 
   quickActionActive: {
-    backgroundColor: "#6f7e49",
+    backgroundColor: "#324F40",
   },
 
   quickActionText: {

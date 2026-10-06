@@ -121,7 +121,7 @@ export default function PerfilPublicoScreen() {
   if (loading || profile === undefined) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6f7e49" />
+        <ActivityIndicator size="large" color="#324F40" />
       </View>
     );
   }
@@ -195,7 +195,7 @@ export default function PerfilPublicoScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f7f8fa" },
+  container: { flex: 1, backgroundColor: "#F4F5F0" },
   content: { padding: 16, paddingBottom: 32, width: "100%", maxWidth: 720, alignSelf: "center" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   notFoundText: { color: "#64748b", fontSize: 16 },
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 999,
   },
-  sendButton: { backgroundColor: "#6f7e49" },
+  sendButton: { backgroundColor: "#324F40" },
   openButton: { backgroundColor: "#1B4079" },
   respondButton: { backgroundColor: "#b9825b" },
   sentButton: { backgroundColor: "#e5e7eb" },
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 10, color: "#111827" },
   tagsRow: { flexDirection: "row", flexWrap: "wrap" },
   tag: {
-    backgroundColor: "#e7efcc",
+    backgroundColor: "#DCE7E1",
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,

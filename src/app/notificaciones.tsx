@@ -195,7 +195,7 @@ export default function NotificacionesScreen() {
   if (loading || fetching) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6f7e49" />
+        <ActivityIndicator size="large" color="#324F40" />
       </View>
     );
   }
@@ -250,7 +250,7 @@ export default function NotificacionesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F4F7F1",
+    backgroundColor: "#F4F5F0",
     paddingHorizontal: 18,
     paddingTop: 20,
     width: "100%",
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   acceptButton: {
-    backgroundColor: "#6f7e49",
+    backgroundColor: "#324F40",
   },
   rejectButton: {
     backgroundColor: "#e5e7eb",

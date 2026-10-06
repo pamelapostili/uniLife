@@ -31,7 +31,7 @@ export default function Header({ title, back }: HeaderProps) {
             </TouchableOpacity>
           ) : (
             <View style={styles.logoWrap}>
-              <Ionicons name="school" size={20} color="#6f7e49" />
+              <Ionicons name="school" size={20} color="#324F40" />
             </View>
           )}
           <Text style={styles.brand} numberOfLines={1}>
@@ -61,8 +61,8 @@ export default function Header({ title, back }: HeaderProps) {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eef2f0",
+    borderBottomWidth: 3,
+    borderBottomColor: "#EF3340",
     ...Platform.select({
       web: { position: "sticky" as any, top: 0, zIndex: 10 },
     }),
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 8,
-    backgroundColor: "#e7efcc",
+    backgroundColor: "#DCE7E1",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,

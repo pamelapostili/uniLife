@@ -234,7 +234,7 @@ export default function CercanosScreen() {
 
       {loading || fetchingUsers ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6f7e49" />
+          <ActivityIndicator size="large" color="#324F40" />
           <Text style={styles.loadingText}>Cargando ubicación...</Text>
         </View>
       ) : errorMsg ? (
@@ -287,7 +287,7 @@ export default function CercanosScreen() {
         </MapView>
       ) : (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6f7e49" />
+          <ActivityIndicator size="large" color="#324F40" />
           <Text style={styles.loadingText}>Preparando el mapa...</Text>
         </View>
       )}
@@ -332,7 +332,7 @@ export default function CercanosScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f7f8fa",
+    backgroundColor: "#F4F5F0",
   },
   topBar: {
     flexDirection: "row",
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
   button: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#6f7e49",
+    backgroundColor: "#324F40",
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 12,
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
   },
   errorText: {
-    color: "#ef4444",
+    color: "#EF3340",
     textAlign: "center",
   },
   webMapContainer: {
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: "#fff",
     borderWidth: 2,
-    borderColor: "#6f7e49",
+    borderColor: "#324F40",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cardButton: {
-    backgroundColor: "#6f7e49",
+    backgroundColor: "#324F40",
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 6,

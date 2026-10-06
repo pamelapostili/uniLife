@@ -185,7 +185,7 @@ export default function ChatScreen() {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#6f7e49" />
+        <ActivityIndicator size="large" color="#324F40" />
       </View>
     );
   }
@@ -272,7 +272,7 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F4F7F1",
+    backgroundColor: "#F4F5F0",
   },
   header: {
     backgroundColor: "#1B4079",
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   myMessage: {
-    backgroundColor: "#b9d27b",
+    backgroundColor: "#324F40",
     borderBottomRightRadius: 5,
   },
   otherMessage: {
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   sendButton: {
-    backgroundColor: "#b9d27b",
+    backgroundColor: "#324F40",
     width: 44,
     height: 44,
     borderRadius: 22,

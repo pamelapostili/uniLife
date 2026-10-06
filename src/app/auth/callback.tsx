@@ -66,7 +66,7 @@ export default function AuthCallback() {
           </TouchableOpacity>
         </>
       ) : (
-        <ActivityIndicator size="large" color="#6f7e49" />
+        <ActivityIndicator size="large" color="#324F40" />
       )}
     </View>
   );
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f7f8fa",
+    backgroundColor: "#F4F5F0",
     padding: 24,
   },
   errorText: {
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   button: {
-    backgroundColor: "#6f7e49",
+    backgroundColor: "#324F40",
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 20,
