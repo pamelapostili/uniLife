@@ -443,7 +443,7 @@ const crearForo = async () => {
   <Ionicons
     name="trash-outline"
     size={20}
-    color="#ef4444"
+    color="#EF3340"
   />
 </TouchableOpacity>
         </View>
@@ -583,7 +583,7 @@ const crearForo = async () => {
 
 {fetching ? (
   <View style={styles.loadingContainer}>
-    <ActivityIndicator size="large" color="#6f7e49" />
+    <ActivityIndicator size="large" color="#324F40" />
   </View>
 ) : (
   <>
@@ -805,7 +805,7 @@ const crearForo = async () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F7F8FA",
+    backgroundColor: "#F4F5F0",
     padding: 15,
     width: "100%",
     maxWidth: 720,
@@ -826,7 +826,7 @@ const styles = StyleSheet.create({
   },
 
   botonCrear: {
-    backgroundColor: "#b9d27b",
+    backgroundColor: "#324F40",
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 15,
@@ -947,8 +947,8 @@ categoriaModal: {
 },
 
 categoriaModalActiva: {
-  backgroundColor: "#b9d27b",
-  borderColor: "#b9d27b",
+  backgroundColor: "#324F40",
+  borderColor: "#324F40",
 },
 
 categoriaModalTexto: {
@@ -984,7 +984,7 @@ cancelarTexto: {
 guardarBtn: {
   flex: 1,
   marginLeft: 8,
-  backgroundColor: "#b9d27b",
+  backgroundColor: "#324F40",
   borderRadius: 10,
   paddingVertical: 12,
   justifyContent: "center",
@@ -999,8 +999,8 @@ guardarTexto: {
 },
 
   categoriaActiva: {
-    backgroundColor: "#b9d27b",
-    borderColor: "#b9d27b",
+    backgroundColor: "#324F40",
+    borderColor: "#324F40",
   },
 
   categoriaTexto: {

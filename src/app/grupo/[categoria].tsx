@@ -77,14 +77,14 @@ export default function GrupoScreen() {
   if (loading || fetching) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6f7e49" />
+        <ActivityIndicator size="large" color="#324F40" />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { backgroundColor: info?.color ?? "#6f7e49" }]}>
+      <View style={[styles.header, { backgroundColor: info?.color ?? "#324F40" }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
@@ -138,7 +138,7 @@ export default function GrupoScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F4F7F1" },
+  container: { flex: 1, backgroundColor: "#F4F5F0" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
     paddingTop: 50,

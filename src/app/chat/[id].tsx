@@ -108,7 +108,7 @@ export default function ChatThread() {
   if (loading || fetching) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6f7e49" />
+        <ActivityIndicator size="large" color="#324F40" />
       </View>
     );
   }
@@ -161,7 +161,7 @@ export default function ChatThread() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f7f8fa' },
+  container: { flex: 1, backgroundColor: '#F4F5F0' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
     backgroundColor: '#1B4079',
@@ -182,12 +182,12 @@ const styles = StyleSheet.create({
   otherWrapper: { justifyContent: 'flex-start' },
   bubbleAvatar: { width: 26, height: 26, borderRadius: 13, marginRight: 6 },
   messageRow: { padding: 12, borderRadius: 12, maxWidth: '80%' },
-  ownMessage: { alignSelf: 'flex-end', backgroundColor: '#6f7e49' },
+  ownMessage: { alignSelf: 'flex-end', backgroundColor: '#324F40' },
   otherMessage: { alignSelf: 'flex-start', backgroundColor: '#e5e7eb' },
   messageText: { color: '#fff' },
   messageTime: { fontSize: 10, color: '#ddd', marginTop: 6 },
   inputRow: { flexDirection: 'row', padding: 8, borderTopWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#fff' },
   input: { flex: 1, padding: 10, borderRadius: 8, backgroundColor: '#f1f5f9' },
-  sendBtn: { marginLeft: 8, backgroundColor: '#6f7e49', paddingHorizontal: 12, justifyContent: 'center', borderRadius: 8 },
+  sendBtn: { marginLeft: 8, backgroundColor: '#324F40', paddingHorizontal: 12, justifyContent: 'center', borderRadius: 8 },
   sendText: { color: '#fff', fontWeight: '700' },
 });

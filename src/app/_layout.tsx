@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs, usePathname, useRouter } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import Header from "../components/Header";
+import { supabase } from "../lib/supabase";
 import { UserProvider, useUser } from "../lib/user-context";
 
 // Rutas que se navegan "hacia adentro" (no son raíz de un tab) y por lo
@@ -37,7 +38,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   if (shouldBlock) {
     return (
       <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#6f7e49" />
+        <ActivityIndicator size="large" color="#324F40" />
       </View>
     );
   }
@@ -47,13 +48,51 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
 function AppTabs() {
   const { user } = useUser();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) {
+      setPendingCount(0);
+      return;
+    }
+
+    let mounted = true;
+
+    async function loadPending() {
+      const { count } = await supabase
+        .from("message_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("receiver_id", user!.id)
+        .eq("status", "pending");
+      if (mounted) setPendingCount(count ?? 0);
+    }
+
+    loadPending();
+
+    // Acento rojo de la paleta: el badge de notificaciones pendientes es el
+    // único lugar donde el rojo tiene un rol funcional (alerta real), en vez
+    // de ser puramente decorativo.
+    const channel = supabase
+      .channel(`pending-requests-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "message_requests", filter: `receiver_id=eq.${user.id}` },
+        loadPending
+      )
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   return (
     <Tabs
       screenOptions={({ route }) => ({
         headerShown: !OWN_HEADER_ROUTES.has(route.name),
         header: () => <Header back={BACK_ROUTES.has(route.name)} />,
-        tabBarActiveTintColor: "#6f7e49",
+        tabBarActiveTintColor: "#324F40",
       })}
     >
       <Tabs.Screen
@@ -101,6 +140,8 @@ function AppTabs() {
         options={{
           title: "Notificaciones",
           href: user ? "/notificaciones" : null,
+          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: "#EF3340", color: "#F4F5F0", fontWeight: "700" },
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="notifications-outline" size={size} color={color} />
           ),
@@ -190,6 +231,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f7f8fa",
+    backgroundColor: "#F4F5F0",
   },
 });

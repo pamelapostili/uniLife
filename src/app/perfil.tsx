@@ -149,7 +149,7 @@ export default function PerfilScreen() {
   if (loading || !user) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6f7e49" />
+        <ActivityIndicator size="large" color="#324F40" />
       </View>
     );
   }
@@ -297,7 +297,7 @@ export default function PerfilScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f7f8fa",
+    backgroundColor: "#F4F5F0",
   },
   loadingContainer: {
     flex: 1,
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#6f7e49",
+    backgroundColor: "#324F40",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 14,
-    backgroundColor: "#6f7e49",
+    backgroundColor: "#324F40",
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 14,
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
   tag: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#e7efcc",
+    backgroundColor: "#DCE7E1",
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -511,8 +511,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8FAFC",
   },
   interesChipActivo: {
-    backgroundColor: "#6f7e49",
-    borderColor: "#6f7e49",
+    backgroundColor: "#324F40",
+    borderColor: "#324F40",
   },
   interesChipTexto: {
     color: "#64748b",
@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
   guardarBtn: {
     flex: 1,
     marginLeft: 8,
-    backgroundColor: "#6f7e49",
+    backgroundColor: "#324F40",
     borderRadius: 10,
     paddingVertical: 12,
     justifyContent: "center",

@@ -13,8 +13,8 @@ type AppAlertProps = {
 };
 
 const THEMES: Record<AppAlertType, { color: string; light: string; icon: keyof typeof Ionicons.glyphMap }> = {
-  error: { color: "#e0524a", light: "#fdeceb", icon: "close-circle" },
-  success: { color: "#6f7e49", light: "#eef3e3", icon: "checkmark-circle" },
+  error: { color: "#EF3340", light: "#fdeceb", icon: "close-circle" },
+  success: { color: "#324F40", light: "#eef3e3", icon: "checkmark-circle" },
   info: { color: "#3b7dd8", light: "#e8f1fc", icon: "information-circle" },
 };
 

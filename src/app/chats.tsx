@@ -121,7 +121,7 @@ export default function ChatsScreen() {
   if (loading || fetching) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6f7e49" />
+        <ActivityIndicator size="large" color="#324F40" />
       </View>
     );
   }
@@ -137,7 +137,7 @@ export default function ChatsScreen() {
 
       {chats.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="chatbubbles-outline" size={56} color="#b9d27b" />
+          <Ionicons name="chatbubbles-outline" size={56} color="#324F40" />
           <Text style={styles.emptyTitle}>Aún no tienes chats</Text>
           <Text style={styles.emptySubtitle}>
             Busca a alguien registrado en UniLife y envíale una solicitud para empezar a chatear.
@@ -175,7 +175,7 @@ export default function ChatsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F4F7F1",
+    backgroundColor: "#F4F5F0",
     paddingHorizontal: 18,
     paddingTop: 20,
     width: "100%",
@@ -193,14 +193,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 30,
     fontWeight: "700",
-    color: "#b9d27b",
+    color: "#324F40",
   },
 
   newChatButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#6f7e49",
+    backgroundColor: "#324F40",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   },
 
   emptyButton: {
-    backgroundColor: "#6f7e49",
+    backgroundColor: "#324F40",
     borderRadius: 12,
     paddingHorizontal: 20,
     paddingVertical: 12,

@@ -135,7 +135,7 @@ export default function NuevoChatScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6f7e49" />
+        <ActivityIndicator size="large" color="#324F40" />
       </View>
     );
   }
@@ -154,7 +154,7 @@ export default function NuevoChatScreen() {
           onChangeText={setQuery}
           autoCapitalize="none"
         />
-        {searching && <ActivityIndicator size="small" color="#6f7e49" />}
+        {searching && <ActivityIndicator size="small" color="#324F40" />}
       </View>
 
       <FlatList
@@ -186,7 +186,7 @@ export default function NuevoChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F4F7F1",
+    backgroundColor: "#F4F5F0",
     paddingHorizontal: 18,
     paddingTop: 20,
     width: "100%",
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   sendButton: {
-    backgroundColor: "#6f7e49",
+    backgroundColor: "#324F40",
   },
   openButton: {
     backgroundColor: "#1B4079",
