@@ -1,15 +1,22 @@
 {
   "expo": {
     "name": "UniLife",
-    "slug": "UniLife",
+    "slug": "unilife",
     "scheme": "unilife",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
     "extra": {
       "apiUrl": "http://192.168.1.100/unilife-api",
-            "usesCleartextTraffic": true
-
+      "router": {},
+      "eas": {
+        "projectId": "ed026e6f-30bd-4937-a7e9-71869339ade2"
+      }
     },
     "android": {
-      "package": "com.anonymous.UniLife"
+      "package": "com.anonymous.UniLife",
+      "versionCode": 1,
+      "usesCleartextTraffic": true
     },
     "plugins": [
       "expo-image",
