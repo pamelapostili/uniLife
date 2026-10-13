@@ -71,6 +71,21 @@ if (!loading && !user) {
   }
 }, [loading, user]);
 
+// Tiempo real: cualquier publicación nueva, editada, borrada, con like o
+// respuesta nueva (que suma al contador) se refleja para todos sin recargar.
+useEffect(() => {
+  if (!user) return;
+
+  const channel = supabase
+    .channel("foros-realtime")
+    .on("postgres_changes", { event: "*", schema: "public", table: "foros" }, () => cargarForos())
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [user]);
+
 
   const cargarForos = async () => {
   setFetching(true);
@@ -113,6 +128,27 @@ if (!loading && !user) {
     setRequestInfoMap({});
   }
 };
+
+// Mientras el modal de respuestas está abierto, las respuestas nuevas de
+// otros usuarios aparecen solas (sin tener que cerrar y volver a abrir).
+useEffect(() => {
+  if (!modalRespuestas || !foroSeleccionado) return;
+
+  const channel = supabase
+    .channel(`respuestas-${foroSeleccionado.id}`)
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "respuestas", filter: `foro_id=eq.${foroSeleccionado.id}` },
+      (payload) => {
+        setRespuestas((prev) => [payload.new, ...prev]);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [modalRespuestas, foroSeleccionado]);
 
 function toggleInteresFiltro(interes: string) {
   setInteresesFiltro((prev) =>
@@ -430,23 +466,25 @@ const crearForo = async () => {
           </View>
         </TouchableOpacity>
 
-        <View style={styles.actions}>
-          <TouchableOpacity onPress={() => editarForo(item)}>
-              <Ionicons
-              name="create-outline"
-              size={20}
-              color="#64748b"
-            />
-          </TouchableOpacity>
+        {item.user_id && item.user_id === user?.id && (
+          <View style={styles.actions}>
+            <TouchableOpacity onPress={() => editarForo(item)}>
+                <Ionicons
+                name="create-outline"
+                size={20}
+                color="#64748b"
+              />
+            </TouchableOpacity>
 
-<TouchableOpacity onPress={() => eliminarForo(item.id)}>
-  <Ionicons
-    name="trash-outline"
-    size={20}
-    color="#EF3340"
-  />
-</TouchableOpacity>
-        </View>
+            <TouchableOpacity onPress={() => eliminarForo(item.id)}>
+              <Ionicons
+                name="trash-outline"
+                size={20}
+                color="#EF3340"
+              />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       <Text style={styles.descripcion}>

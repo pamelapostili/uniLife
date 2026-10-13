@@ -75,6 +75,29 @@ export default function ChatThread() {
     })();
   }, [chatId, user]);
 
+  // Tiempo real: cualquier mensaje nuevo en este chat (mío desde otro
+  // dispositivo, o del otro usuario) aparece al instante, sin recargar.
+  useEffect(() => {
+    if (!chatId) return;
+
+    const channel = supabase
+      .channel(`messages-${chatId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `chat_id=eq.${chatId}` },
+        (payload) => {
+          const nuevo = payload.new as any;
+          setMessages((prev) => (prev.some((m) => m.id === nuevo.id) ? prev : [...prev, nuevo]));
+          setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [chatId]);
+
   async function sendMessage() {
     if (!text.trim() || !chatId || !user) return;
 

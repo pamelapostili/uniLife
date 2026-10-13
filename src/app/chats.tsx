@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import AppAlert from "../components/AppAlert";
 import { supabase } from "../lib/supabase";
 import { useUser } from "../lib/user-context";
 
@@ -19,6 +20,8 @@ export default function ChatsScreen() {
   const router = useRouter();
   const [chats, setChats] = useState<ChatItem[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [chatToDelete, setChatToDelete] = useState<ChatItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function loadChats() {
     if (!user) return;
@@ -86,6 +89,25 @@ export default function ChatsScreen() {
     setFetching(false);
   }
 
+  async function confirmarEliminarChat() {
+    if (!chatToDelete) return;
+    setDeleting(true);
+
+    // Borrado real: mensajes, membresías y el chat en sí (no solo ocultarlo).
+    await supabase.from("messages").delete().eq("chat_id", chatToDelete.id);
+    await supabase.from("chat_participants").delete().eq("chat_id", chatToDelete.id);
+    const { error } = await supabase.from("chats").delete().eq("id", chatToDelete.id);
+
+    setDeleting(false);
+
+    if (error) {
+      console.warn("[chats.delete] ", error.message);
+    }
+
+    setChats((prev) => prev.filter((c) => c.id !== chatToDelete.id));
+    setChatToDelete(null);
+  }
+
   useEffect(() => {
     if (!loading && !user) {
       router.replace("/login");
@@ -109,6 +131,13 @@ export default function ChatsScreen() {
           table: "chat_participants",
           filter: `user_id=eq.${user.id}`,
         },
+        () => loadChats()
+      )
+      // Último mensaje/orden de la lista se actualiza solo cuando alguien
+      // escribe en cualquiera de mis chats, sin tener que volver a entrar.
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "chats" },
         () => loadChats()
       )
       .subscribe();
@@ -163,11 +192,36 @@ export default function ChatsScreen() {
                     {chat.last_message}
                   </Text>
                 </View>
+
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setChatToDelete(chat);
+                  }}
+                  hitSlop={8}
+                >
+                  <Ionicons name="trash-outline" size={20} color="#EF3340" />
+                </TouchableOpacity>
               </View>
             </TouchableOpacity>
           ))}
         </ScrollView>
       )}
+
+      <AppAlert
+        visible={chatToDelete !== null}
+        type="error"
+        title="¿Eliminar esta conversación?"
+        message={
+          chatToDelete
+            ? `Se borrará para siempre tu chat con ${chatToDelete.name}, incluyendo todos los mensajes. Esta acción no se puede deshacer.`
+            : undefined
+        }
+        onClose={() => !deleting && setChatToDelete(null)}
+        onConfirm={deleting ? undefined : confirmarEliminarChat}
+        confirmText={deleting ? "Eliminando..." : "Eliminar"}
+      />
     </View>
   );
 }
@@ -267,6 +321,11 @@ const styles = StyleSheet.create({
   chatInfo: {
     flex: 1,
     marginLeft: 15,
+  },
+
+  deleteButton: {
+    marginLeft: 8,
+    padding: 6,
   },
 
   topRow: {

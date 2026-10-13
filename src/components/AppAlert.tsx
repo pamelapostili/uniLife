@@ -10,6 +10,10 @@ type AppAlertProps = {
   title: string;
   message?: string;
   onClose: () => void;
+  /** Si se da, el modal muestra dos botones (Cancelar / confirmText) en vez de uno solo. */
+  onConfirm?: () => void;
+  confirmText?: string;
+  cancelText?: string;
 };
 
 const THEMES: Record<AppAlertType, { color: string; light: string; icon: keyof typeof Ionicons.glyphMap }> = {
@@ -22,7 +26,16 @@ const THEMES: Record<AppAlertType, { color: string; light: string; icon: keyof t
  * Reemplazo temático de Alert.alert/window.alert: modal animado con color e
  * ícono según el tipo de mensaje, en vez de la caja de sistema genérica.
  */
-export default function AppAlert({ visible, type = "error", title, message, onClose }: AppAlertProps) {
+export default function AppAlert({
+  visible,
+  type = "error",
+  title,
+  message,
+  onClose,
+  onConfirm,
+  confirmText = "Eliminar",
+  cancelText = "Cancelar",
+}: AppAlertProps) {
   const scale = useRef(new Animated.Value(0.85)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const theme = THEMES[type];
@@ -52,9 +65,23 @@ export default function AppAlert({ visible, type = "error", title, message, onCl
             <Text style={styles.title}>{title}</Text>
             {message ? <Text style={styles.message}>{message}</Text> : null}
 
-            <TouchableOpacity style={[styles.button, { backgroundColor: theme.color }]} onPress={onClose}>
-              <Text style={styles.buttonText}>Entendido</Text>
-            </TouchableOpacity>
+            {onConfirm ? (
+              <View style={styles.buttonRow}>
+                <TouchableOpacity style={[styles.button, styles.buttonHalf, styles.buttonOutline]} onPress={onClose}>
+                  <Text style={styles.buttonOutlineText}>{cancelText}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.button, styles.buttonHalf, { backgroundColor: theme.color }]}
+                  onPress={onConfirm}
+                >
+                  <Text style={styles.buttonText}>{confirmText}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={[styles.button, { backgroundColor: theme.color }]} onPress={onClose}>
+                <Text style={styles.buttonText}>Entendido</Text>
+              </TouchableOpacity>
+            )}
           </Pressable>
         </Animated.View>
       </Pressable>
@@ -114,6 +141,24 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  buttonRow: {
+    flexDirection: "row",
+    width: "100%",
+    gap: 10,
+  },
+  buttonHalf: {
+    flex: 1,
+  },
+  buttonOutline: {
+    backgroundColor: "#fff",
+    borderWidth: 1.5,
+    borderColor: "#d8d6cf",
+  },
+  buttonOutlineText: {
+    color: "#5b5a54",
     fontWeight: "700",
     fontSize: 15,
   },
