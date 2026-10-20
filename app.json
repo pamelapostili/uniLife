@@ -13,11 +13,11 @@
         "projectId": "ed026e6f-30bd-4937-a7e9-71869339ade2"
       }
     },
-    "android": {
-      "package": "com.anonymous.UniLife",
-      "versionCode": 1,
-      "usesCleartextTraffic": true
-    },
+"android": {
+  "package": "com.utpuebla.unilife",
+  "versionCode": 1,
+  "usesCleartextTraffic": true
+},
     "plugins": [
       "expo-image",
       "expo-router",
