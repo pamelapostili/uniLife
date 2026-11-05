@@ -17,9 +17,12 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "UniLife necesita acceso a tus fotos para que elijas tu foto de perfil."
+          "photosPermission": "UniLife necesita acceso a tus fotos para tu foto de perfil y para enviar fotos y videos en los chats.",
+          "cameraPermission": "UniLife necesita acceso a la cámara para tomar fotos y videos y enviarlos en los chats.",
+          "microphonePermission": "UniLife necesita acceso al micrófono para grabar videos y enviarlos en los chats."
         }
-      ]
+      ],
+      "expo-video"
     ]
   }
 }

@@ -3,22 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { supabase } from "../../lib/supabase";
 
-/**
- * Pantalla puente para el login social en web: Supabase regresa aquí tras el
- * OAuth. Puede venir como "?code=..." (flujo PKCE, el que usa esta versión
- * de supabase-js por defecto) o como "#access_token=..." (flujo implícito).
- * Lo procesamos manualmente antes de que expo-router limpie la URL, ya que
- * su enrutado en web borra el hash/query antes de que el cliente de
- * Supabase alcance a detectarlo por sí solo.
- */
+
 export default function AuthCallback() {
   const router = useRouter();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const ranRef = useRef(false);
 
   useEffect(() => {
-    // React StrictMode ejecuta los efectos dos veces en desarrollo; el código
-    // de OAuth es de un solo uso, así que una segunda ejecución lo rompería.
     if (ranRef.current) return;
     ranRef.current = true;
 

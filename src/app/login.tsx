@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,6 +18,8 @@ import { validarContrasena } from "../lib/password";
 import { supabase } from "../lib/supabase";
 import { useUser } from "../lib/user-context";
 
+const PRIVACY_POLICY_URL = "https://pamelapostili.github.io/uniLifePoliticas/";
+
 export default function LoginScreen() {
   const { user, loading: userLoading } = useUser();
   const [emailOrPhone, setEmailOrPhone] = useState("");
@@ -25,6 +28,7 @@ export default function LoginScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [alertInfo, setAlertInfo] = useState<{ title: string; message?: string; type: AppAlertType } | null>(null);
   const [oauthLoading, setOauthLoading] = useState<OAuthProvider | null>(null);
 
@@ -37,6 +41,17 @@ export default function LoginScreen() {
       router.replace("/");
     }
   }, [user, userLoading]);
+
+  function openPrivacyPolicy() {
+    WebBrowser.openBrowserAsync(PRIVACY_POLICY_URL);
+  }
+
+  function showPrivacyRequired() {
+    showError(
+      "Acepta las políticas de privacidad",
+      "Para crear tu cuenta necesitas aceptar las políticas de privacidad de UniLife."
+    );
+  }
 
   function isValidEmail(value: string) {
     return /\S+@\S+\.\S+/.test(value);
@@ -112,17 +127,28 @@ export default function LoginScreen() {
       return;
     }
 
+    if (!acceptedPrivacy) {
+      showPrivacyRequired();
+      return;
+    }
+
+    // Se guarda en user_metadata cuándo aceptó las políticas, como constancia.
+    const metadata = {
+      full_name: name || undefined,
+      privacy_accepted_at: new Date().toISOString(),
+    };
+
     setLoading(true);
     const { data, error } = isEmail
       ? await supabase.auth.signUp({
           email: emailOrPhone,
           password,
-          options: { data: { full_name: name || undefined } },
+          options: { data: metadata },
         })
       : await supabase.auth.signUp({
           phone: emailOrPhone,
           password,
-          options: { data: { full_name: name || undefined } },
+          options: { data: metadata },
         });
     setLoading(false);
 
@@ -176,6 +202,12 @@ export default function LoginScreen() {
   }
 
   async function handleOAuthPress(provider: OAuthProvider) {
+    // En modo registro, Google/Apple también crean la cuenta: mismo requisito.
+    if (isSignUp && !acceptedPrivacy) {
+      showPrivacyRequired();
+      return;
+    }
+
     setOauthLoading(provider);
     try {
       await signInWithProvider(provider);
@@ -245,8 +277,30 @@ export default function LoginScreen() {
           />
         )}
 
+        {isSignUp && (
+          <View style={styles.privacyRow}>
+            <TouchableOpacity
+              onPress={() => setAcceptedPrivacy((v) => !v)}
+              style={[styles.checkbox, acceptedPrivacy && styles.checkboxChecked]}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: acceptedPrivacy }}
+              accessibilityLabel="Acepto las políticas de privacidad"
+              hitSlop={8}
+            >
+              {acceptedPrivacy && <Ionicons name="checkmark" size={16} color="#fff" />}
+            </TouchableOpacity>
+            <Text style={styles.privacyText}>
+              <Text onPress={() => setAcceptedPrivacy((v) => !v)}>Acepto las </Text>
+              <Text style={styles.privacyLink} onPress={openPrivacyPolicy}>
+                políticas de privacidad
+              </Text>
+              <Text onPress={() => setAcceptedPrivacy((v) => !v)}> de UniLife</Text>
+            </Text>
+          </View>
+        )}
+
         <TouchableOpacity
-          style={styles.button}
+          style={[styles.button, isSignUp && !acceptedPrivacy && styles.buttonDisabled]}
           onPress={isSignUp ? handleSignUp : handleLogin}
           disabled={loading}
         >
@@ -299,6 +353,16 @@ export default function LoginScreen() {
               </>
             )}
           </TouchableOpacity>
+        )}
+
+        {/* En registro ya está la casilla; aquí cubre a quien entra por primera vez con Google/Apple. */}
+        {!isSignUp && (
+          <Text style={styles.legalNote}>
+            Al continuar aceptas las{" "}
+            <Text style={styles.privacyLink} onPress={openPrivacyPolicy}>
+              políticas de privacidad
+            </Text>
+          </Text>
         )}
       </View>
 
@@ -369,9 +433,51 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 6,
   },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
   buttonText: {
     color: "#fff",
     fontWeight: "700",
+  },
+  privacyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 2,
+    marginBottom: 12,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: "#d1d5db",
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  checkboxChecked: {
+    backgroundColor: "#324F40",
+    borderColor: "#324F40",
+  },
+  privacyText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#64748b",
+    lineHeight: 18,
+  },
+  legalNote: {
+    textAlign: "center",
+    color: "#94a3b8",
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 4,
+  },
+  privacyLink: {
+    color: "#324F40",
+    fontWeight: "600",
+    textDecorationLine: "underline",
   },
   note: {
     textAlign: "center",

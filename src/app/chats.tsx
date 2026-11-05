@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import AppAlert from "../components/AppAlert";
+import { deleteChatFolder } from "../lib/chatMedia";
 import { supabase } from "../lib/supabase";
 import { useUser } from "../lib/user-context";
 
@@ -93,7 +94,8 @@ export default function ChatsScreen() {
     if (!chatToDelete) return;
     setDeleting(true);
 
-    // Borrado real: mensajes, membresías y el chat en sí (no solo ocultarlo).
+    // Borrado real: archivos, mensajes, membresías y el chat en sí (no solo ocultarlo).
+    await deleteChatFolder(chatToDelete.id);
     await supabase.from("messages").delete().eq("chat_id", chatToDelete.id);
     await supabase.from("chat_participants").delete().eq("chat_id", chatToDelete.id);
     const { error } = await supabase.from("chats").delete().eq("id", chatToDelete.id);
